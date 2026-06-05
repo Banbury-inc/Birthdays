@@ -332,24 +332,6 @@ export function App() {
                   </Badge>
                 </CardAction>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-end justify-between gap-4 rounded-lg bg-muted p-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm text-muted-foreground">
-                      Your birthday
-                    </span>
-                    <span className="text-2xl font-semibold">
-                      {state.profile?.birthday
-                        ? getBirthdayLabel(state.profile.birthday)
-                        : "Confirmed"}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      Shared with matched contacts
-                    </span>
-                  </div>
-                  <CalendarDaysIcon className="text-muted-foreground" />
-                </div>
-              </CardContent>
               <CardFooter className="justify-between gap-4">
                 <AvatarGroup>
                   {state.matches.slice(0, 3).map((match) => (

@@ -1,4 +1,7 @@
-import { parsePhoneNumberFromString } from "libphonenumber-js"
+import {
+  isSupportedCountry,
+  parsePhoneNumberFromString,
+} from "libphonenumber-js"
 
 export interface NormalizedPhone {
   display: string
@@ -10,12 +13,14 @@ export function normalizePhoneNumber(
   defaultCountry: string
 ): NormalizedPhone | null {
   const trimmedPhoneNumber = rawPhoneNumber.trim()
+  const defaultCountryCode = defaultCountry.toUpperCase()
 
   if (!trimmedPhoneNumber) return null
+  if (!isSupportedCountry(defaultCountryCode)) return null
 
   const phoneNumber = parsePhoneNumberFromString(
     trimmedPhoneNumber,
-    defaultCountry.toUpperCase()
+    defaultCountryCode
   )
 
   if (!phoneNumber?.isValid()) return null

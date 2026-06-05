@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: "com.banbury.birthdays",
   appName: "Birthdays",
   webDir: "dist",
-  bundledWebRuntime: false,
   ios: {
     contentInset: "automatic",
     scheme: "Birthdays",
