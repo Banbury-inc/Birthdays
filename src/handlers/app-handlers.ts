@@ -18,13 +18,20 @@ import {
 } from "@/services/auth-service"
 import { importDeviceContacts } from "@/services/contact-service"
 
-export type AppStep = "phone" | "otp" | "profile" | "contacts" | "home"
+export type AppStep =
+  | "phone"
+  | "otp"
+  | "profile"
+  | "contacts"
+  | "terms"
+  | "home"
 
 export const appStepOptions: { label: string; step: AppStep }[] = [
   { label: "Phone login", step: "phone" },
   { label: "Confirm code", step: "otp" },
   { label: "Confirm birthday", step: "profile" },
   { label: "Sync contacts", step: "contacts" },
+  { label: "Terms", step: "terms" },
   { label: "Home", step: "home" },
 ]
 
@@ -45,6 +52,8 @@ export interface AppState {
 interface AppActions {
   setState: Dispatch<SetStateAction<AppState>>
 }
+
+export const MATCHES_POLL_INTERVAL_MS = 30_000
 
 export const initialAppState: AppState = {
   code: "",
@@ -330,4 +339,44 @@ export function handleNavigateToStep(actions: AppActions, step: AppStep) {
     step,
     successMessage: "",
   }))
+}
+
+export async function refreshContactMatches(actions: AppActions) {
+  if (!isApiConfigured()) return
+
+  try {
+    const matches = await fetchContactMatches()
+
+    actions.setState((state) => {
+      if (state.step !== "home") return state
+
+      return {
+        ...state,
+        matches,
+      }
+    })
+  } catch {
+    // Background refresh should not interrupt the home screen.
+  }
+}
+
+export function startHomeMatchesPolling(actions: AppActions) {
+  void refreshContactMatches(actions)
+
+  const intervalId = window.setInterval(() => {
+    void refreshContactMatches(actions)
+  }, MATCHES_POLL_INTERVAL_MS)
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === "visible") {
+      void refreshContactMatches(actions)
+    }
+  }
+
+  document.addEventListener("visibilitychange", handleVisibilityChange)
+
+  return () => {
+    window.clearInterval(intervalId)
+    document.removeEventListener("visibilitychange", handleVisibilityChange)
+  }
 }

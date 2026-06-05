@@ -3,6 +3,7 @@ import {
   CalendarDaysIcon,
   CheckCircle2Icon,
   ContactRoundIcon,
+  FileTextIcon,
   LogOutIcon,
   MenuIcon,
   PhoneIcon,
@@ -46,6 +47,7 @@ import {
   handleProfileSubmit,
   handleSignOut,
   initialAppState,
+  startHomeMatchesPolling,
   updateField,
   type AppState,
   type AppStep,
@@ -97,6 +99,12 @@ export function App() {
     void bootstrapSession(actions)
   }, [actions])
 
+  useEffect(() => {
+    if (state.step !== "home") return
+
+    return startHomeMatchesPolling(actions)
+  }, [actions, state.step])
+
   return (
     <main className="min-h-dvh bg-background text-foreground">
       <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-5 px-5 py-6">
@@ -105,10 +113,6 @@ export function App() {
             <h1 className="font-heading text-3xl font-semibold tracking-tight">
               Your contacts, only when they join.
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Sign in with your phone, confirm your birthday, and see friends
-              from your address book who also use the app.
-            </p>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -312,6 +316,37 @@ export function App() {
           </Card>
         ) : null}
 
+        {state.step === "terms" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Terms and conditions</CardTitle>
+              <CardDescription>
+                Birthday sharing works only with people who already have your
+                phone number.
+              </CardDescription>
+              <CardAction>
+                <FileTextIcon className="text-muted-foreground" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4 text-sm text-muted-foreground">
+              <p>
+                By using Birthdays, you agree that anyone who has your phone
+                number saved in their contacts may be able to see your name and
+                birthday after they join the app and sync their contacts.
+              </p>
+              <div className="rounded-lg border bg-muted p-4 text-foreground">
+                Yes, I am okay with everyone that has my phone number seeing my
+                birthday.
+              </div>
+              <p>
+                Your contacts are used to find matches. We do not show your
+                birthday to people unless their synced contacts include your
+                phone number.
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {state.step === "home" ? (
           <>
             <Card>
@@ -332,68 +367,26 @@ export function App() {
                   </Badge>
                 </CardAction>
               </CardHeader>
-              <CardFooter className="justify-between gap-4">
-                <AvatarGroup>
-                  {state.matches.slice(0, 3).map((match) => (
-                    <Avatar key={match.id}>
-                      <AvatarFallback>
-                        {getInitials(match.displayName)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ))}
-                  {state.matches.length > 3 ? (
-                    <AvatarGroupCount>
-                      +{state.matches.length - 3}
-                    </AvatarGroupCount>
-                  ) : null}
-                </AvatarGroup>
-                <Button
-                  disabled={state.isLoading}
-                  onClick={() => handleContactsSync(actions)}
-                  size="sm"
-                  variant="outline"
-                >
-                  Resync
-                </Button>
-              </CardFooter>
+              {state.matches.length ? (
+                <CardFooter>
+                  <AvatarGroup>
+                    {state.matches.slice(0, 3).map((match) => (
+                      <Avatar key={match.id}>
+                        <AvatarFallback>
+                          {getInitials(match.displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                    {state.matches.length > 3 ? (
+                      <AvatarGroupCount>
+                        +{state.matches.length - 3}
+                      </AvatarGroupCount>
+                    ) : null}
+                  </AvatarGroup>
+                </CardFooter>
+              ) : null}
             </Card>
 
-            <section className="flex flex-col gap-3" aria-labelledby="matches">
-              <div className="flex items-center justify-between gap-3">
-                <h2 id="matches" className="font-heading text-lg font-medium">
-                  App contacts
-                </h2>
-                <Badge variant="ghost">Matched</Badge>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                {state.matches.length ? (
-                  state.matches.map((match) => (
-                    <Card key={match.id} size="sm">
-                      <CardHeader>
-                        <CardTitle>{match.displayName}</CardTitle>
-                        <CardDescription>
-                          Birthday: {getBirthdayLabel(match.birthday)}
-                        </CardDescription>
-                        <CardAction>
-                          <Badge variant="secondary">In contacts</Badge>
-                        </CardAction>
-                      </CardHeader>
-                    </Card>
-                  ))
-                ) : (
-                  <Card size="sm">
-                    <CardHeader>
-                      <CardTitle>No matches yet</CardTitle>
-                      <CardDescription>
-                        When people in your contacts join, their birthdays will
-                        appear here.
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                )}
-              </div>
-            </section>
           </>
         ) : null}
       </div>
