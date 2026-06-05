@@ -100,6 +100,18 @@ variable "database_backup_retention_days" {
   default     = 7
 }
 
+variable "api_allowed_origins" {
+  description = "Origins allowed to call the Birthdays API."
+  type        = list(string)
+  default     = ["*"]
+}
+
+variable "lambda_pg_layer_arn" {
+  description = "Optional Lambda layer ARN that provides the pg Node.js package."
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Tags to apply to application resources."
   type        = map(string)

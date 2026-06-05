@@ -5,8 +5,11 @@ An iPhone-first birthday reminder app starter built with React, TypeScript, Vite
 ## What is included
 
 - Mobile-first app shell sized for an iPhone viewport
+- Capacitor configuration for an iPhone app shell with Contacts permission copy
+- AWS Cognito phone-number sign-in configuration and protected API infrastructure
+- PostgreSQL migration for phone-number profiles and contact matching
 - shadcn/ui configured with the Nova preset and Radix primitives
-- Starter birthday dashboard using Button, Card, Badge, and Avatar components
+- Phone login, birthday onboarding, contacts sync, and matched birthdays screens
 - TypeScript path aliases through `@/*`
 
 ## Scripts
@@ -15,7 +18,23 @@ An iPhone-first birthday reminder app starter built with React, TypeScript, Vite
 npm run dev
 npm run typecheck
 npm run lint
+npm run cap:sync
+npm run ios
 ```
+
+## Environment
+
+Copy `.env.example` to `.env.local` and fill the values from Terraform outputs:
+
+```bash
+VITE_API_BASE_URL=
+VITE_AWS_REGION=us-east-1
+VITE_COGNITO_USER_POOL_ID=
+VITE_COGNITO_USER_POOL_CLIENT_ID=
+VITE_DEFAULT_COUNTRY=US
+```
+
+The API Lambda expects the `pg` package to be available at runtime. Provide it with a Lambda layer through `lambda_pg_layer_arn` or bundle `infra/app/lambda/package.json` dependencies into the function artifact in your deployment pipeline.
 
 ## Infrastructure
 
