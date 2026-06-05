@@ -47,7 +47,7 @@ resource "aws_cognito_user_pool" "users" {
   }
 
   sign_in_policy {
-    allowed_first_auth_factors = ["SMS_OTP"]
+    allowed_first_auth_factors = ["PASSWORD", "SMS_OTP"]
   }
 
   sms_configuration {

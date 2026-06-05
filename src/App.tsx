@@ -4,9 +4,9 @@ import {
   CheckCircle2Icon,
   ContactRoundIcon,
   LogOutIcon,
+  MenuIcon,
   PhoneIcon,
   ShieldCheckIcon,
-  SparklesIcon,
 } from "lucide-react"
 
 import {
@@ -18,6 +18,16 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Card,
   CardAction,
   CardContent,
@@ -27,8 +37,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
+  appStepOptions,
   bootstrapSession,
   handleContactsSync,
+  handleNavigateToStep,
   handleOtpSubmit,
   handlePhoneSubmit,
   handleProfileSubmit,
@@ -36,6 +48,7 @@ import {
   initialAppState,
   updateField,
   type AppState,
+  type AppStep,
 } from "@/handlers/app-handlers"
 
 function getInitials(name: string) {
@@ -89,31 +102,58 @@ export function App() {
       <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-5 px-5 py-6">
         <header className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <Badge variant="secondary">
-              <SparklesIcon data-icon="inline-start" />
-              Phone-first birthdays
-            </Badge>
-            <div className="flex flex-col gap-1">
-              <h1 className="font-heading text-3xl font-semibold tracking-tight">
-                Your contacts, only when they join.
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Sign in with your phone, confirm your birthday, and see friends
-                from your address book who also use the app.
-              </p>
-            </div>
+            <h1 className="font-heading text-3xl font-semibold tracking-tight">
+              Your contacts, only when they join.
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Sign in with your phone, confirm your birthday, and see friends
+              from your address book who also use the app.
+            </p>
           </div>
-          {state.profile ? (
-            <Button
-              aria-label="Sign out"
-              disabled={state.isLoading}
-              onClick={() => handleSignOut(actions)}
-              size="icon"
-              variant="outline"
-            >
-              <LogOutIcon />
-            </Button>
-          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                aria-label="Navigate pages"
+                className="shrink-0"
+                size="icon"
+                variant="outline"
+              >
+                <MenuIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Pages</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                onValueChange={(value) =>
+                  handleNavigateToStep(actions, value as AppStep)
+                }
+                value={state.step}
+              >
+                {appStepOptions.map((option) => (
+                  <DropdownMenuRadioItem
+                    key={option.step}
+                    value={option.step}
+                  >
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+              {state.profile ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={state.isLoading}
+                    onClick={() => handleSignOut(actions)}
+                    variant="destructive"
+                  >
+                    <LogOutIcon />
+                    Sign out
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
         <StatusMessage state={state} />

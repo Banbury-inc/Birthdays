@@ -20,6 +20,14 @@ import { importDeviceContacts } from "@/services/contact-service"
 
 export type AppStep = "phone" | "otp" | "profile" | "contacts" | "home"
 
+export const appStepOptions: { label: string; step: AppStep }[] = [
+  { label: "Phone login", step: "phone" },
+  { label: "Confirm code", step: "otp" },
+  { label: "Confirm birthday", step: "profile" },
+  { label: "Sync contacts", step: "contacts" },
+  { label: "Home", step: "home" },
+]
+
 export interface AppState {
   code: string
   contactsSyncedCount: number
@@ -313,4 +321,13 @@ export function handleContactsSync(actions: AppActions) {
 
 export function handleSignOut(actions: AppActions) {
   void signOut(actions)
+}
+
+export function handleNavigateToStep(actions: AppActions, step: AppStep) {
+  actions.setState((state) => ({
+    ...state,
+    errorMessage: "",
+    step,
+    successMessage: "",
+  }))
 }
