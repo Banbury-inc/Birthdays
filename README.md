@@ -35,6 +35,8 @@ terraform apply
 
 See `infra/README.md` for the full setup and deployment workflow.
 
+GitHub Actions deploys automatically to AWS when changes are pushed to `main`, including merges from pull requests.
+
 ## Adding shadcn components
 
 Add more UI primitives with:
