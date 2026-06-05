@@ -1,0 +1,18 @@
+project_name = "birthdays"
+aws_region   = "us-east-1"
+price_class  = "PriceClass_100"
+
+database_name           = "birthdays"
+database_username       = "birthdays_admin"
+database_instance_class = "db.t4g.micro"
+
+# Replace with your current public IP as a /32 before applying.
+# Example: ["198.51.100.25/32"]
+database_allowed_cidr_blocks = ["203.0.113.10/32"]
+
+# Set this if you want stable names without relying on the generated random suffix.
+# resource_suffix = "prod"
+
+tags = {
+  Environment = "production"
+}

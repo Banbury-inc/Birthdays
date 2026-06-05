@@ -1,0 +1,5 @@
+bucket       = "birthdays-terraform-state-replace-me"
+key          = "birthdays/app/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true
