@@ -2,6 +2,22 @@
 
 The `ios release` lane builds `com.banbury.birthdays`, uploads the IPA to App Store Connect, and submits the version for App Store review.
 
+App Store Connect authentication accepts either these environment variables:
+
+```bash
+APP_STORE_CONNECT_API_KEY_BASE64=
+APP_STORE_CONNECT_ISSUER_ID=
+APP_STORE_CONNECT_KEY_ID=
+```
+
+Or Fastlane-style names:
+
+```bash
+APP_STORE_CONNECT_API_KEY_KEY=
+APP_STORE_CONNECT_API_KEY_ISSUER_ID=
+APP_STORE_CONNECT_API_KEY_KEY_ID=
+```
+
 ## Normal Release Flow
 
 1. Push or merge to `main`.

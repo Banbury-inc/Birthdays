@@ -83,6 +83,14 @@ APP_STORE_CONNECT_KEY_ID=
 APP_REVIEW_EMAIL=
 ```
 
+The workflow also accepts Fastlane-style App Store Connect API key secrets:
+
+```bash
+APP_STORE_CONNECT_API_KEY_KEY=
+APP_STORE_CONNECT_API_KEY_ISSUER_ID=
+APP_STORE_CONNECT_API_KEY_KEY_ID=
+```
+
 For signing, use Fastlane match:
 
 ```bash
