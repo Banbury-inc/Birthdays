@@ -68,6 +68,52 @@ See `infra/README.md` for the full setup and deployment workflow.
 
 GitHub Actions deploys automatically to AWS when changes are pushed to `main`, including merges from pull requests.
 
+## iOS App Store releases
+
+GitHub Actions also includes an iOS release workflow at `.github/workflows/ios-app-store.yml`. It runs on pushes to `main` and can be started manually with `workflow_dispatch`.
+
+The workflow builds the Vite app, syncs Capacitor into `ios/`, archives the Xcode project with Fastlane, uploads the IPA to App Store Connect, and submits the version for App Store review. Approved builds are configured for manual release, not automatic public release.
+
+Set these GitHub Actions secrets before enabling the workflow:
+
+```bash
+APP_STORE_CONNECT_API_KEY_BASE64=
+APP_STORE_CONNECT_ISSUER_ID=
+APP_STORE_CONNECT_KEY_ID=
+APP_REVIEW_EMAIL=
+```
+
+For signing, use Fastlane match:
+
+```bash
+MATCH_PASSWORD=
+MATCH_GIT_BASIC_AUTHORIZATION=
+```
+
+Or provide manual signing assets:
+
+```bash
+IOS_DISTRIBUTION_CERTIFICATE_BASE64=
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD=
+IOS_PROVISIONING_PROFILE_BASE64=
+IOS_KEYCHAIN_PASSWORD=
+```
+
+Set these repository variables:
+
+```bash
+APPLE_TEAM_ID=
+APP_STORE_CONNECT_TEAM_ID=
+APP_STORE_APPLE_ID=
+VITE_API_BASE_URL=
+VITE_DEFAULT_COUNTRY=US
+MATCH_GIT_URL=
+```
+
+Optional variables include `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
+
+First-time App Store submissions still require complete App Store Connect setup, including app privacy answers, age rating verification, pricing/availability, screenshots, support URL, and privacy policy URL. See `ios/fastlane/README.md` for the release lane details.
+
 ## Adding shadcn components
 
 Add more UI primitives with:

@@ -119,7 +119,7 @@ export function App() {
   const [state, setState] = useState(initialAppState)
   const actions = useMemo(() => ({ setState }), [])
   const birthdayList = useMemo<BirthdayListItem[]>(() => {
-    const profileBirthday = state.profile
+    const profileBirthday: BirthdayListItem[] = state.profile
       ? [
           {
             birthday: state.profile.birthday,
@@ -132,7 +132,7 @@ export function App() {
 
     return [
       ...profileBirthday,
-      ...state.matches.map((match) => ({
+      ...state.matches.map((match): BirthdayListItem => ({
         birthday: match.birthday,
         displayName: match.displayName,
         id: match.id,

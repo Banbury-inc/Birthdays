@@ -1,0 +1,12 @@
+Birthdays helps you remember the people who matter without turning your contacts into another noisy social feed.
+
+Sign in with your phone number, add your own birthday, and choose whether to sync contacts so Birthdays can find friends who also use the app. Matched birthdays are presented in a simple mobile-first view designed for quick check-ins.
+
+Key features:
+- Phone-number sign-in with verification
+- Birthday onboarding for your own profile
+- Optional contacts access for friend matching
+- Clean, focused upcoming birthday reminders
+- Privacy-minded matching through the Birthdays API
+
+Contacts access is optional and used only to help find people you may know who also use Birthdays.

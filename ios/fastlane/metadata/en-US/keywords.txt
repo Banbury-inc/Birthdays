@@ -1,0 +1,1 @@
+birthday,reminders,contacts,friends,calendar

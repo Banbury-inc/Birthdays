@@ -1,0 +1,191 @@
+require "json"
+
+default_platform(:ios)
+
+APP_IDENTIFIER = "com.banbury.birthdays"
+APP_NAME = "Birthdays"
+XCODEPROJ = "App.xcodeproj"
+SCHEME = "App"
+
+def env_value(name, fallback = nil)
+  value = ENV[name]
+  return value unless value.to_s.strip.empty?
+
+  fallback
+end
+
+def require_env(name)
+  value = env_value(name)
+  UI.user_error!("Missing required environment variable: #{name}") if value.nil?
+
+  value
+end
+
+def compact_hash(values)
+  values.reject { |_key, value| value.to_s.strip.empty? }
+end
+
+def package_version
+  package_json_path = File.expand_path("../../package.json", __dir__)
+  JSON.parse(File.read(package_json_path)).fetch("version")
+end
+
+def app_store_api_key
+  app_store_connect_api_key(
+    key_id: require_env("APP_STORE_CONNECT_KEY_ID"),
+    issuer_id: require_env("APP_STORE_CONNECT_ISSUER_ID"),
+    key_content: require_env("APP_STORE_CONNECT_API_KEY_BASE64"),
+    is_key_content_base64: true,
+    duration: 1200,
+    in_house: false
+  )
+end
+
+def ensure_app_store_record!(version)
+  app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+  return app if app
+
+  unless env_value("APP_STORE_CONNECT_CREATE_APP") == "true"
+    UI.user_error!(
+      "No App Store Connect app record exists for #{APP_IDENTIFIER}. " \
+      "Create it once in App Store Connect, or set APP_STORE_CONNECT_CREATE_APP=true " \
+      "with APP_STORE_COMPANY_NAME and APP_STORE_SKU to let this lane attempt creation."
+    )
+  end
+
+  begin
+    Spaceship::ConnectAPI::BundleId.find(APP_IDENTIFIER) ||
+      Spaceship::ConnectAPI::BundleId.create(
+        name: APP_NAME,
+        identifier: APP_IDENTIFIER
+      )
+
+    Spaceship::ConnectAPI::App.create(
+      name: APP_NAME,
+      version_string: version,
+      sku: env_value("APP_STORE_SKU", "birthdays-ios"),
+      primary_locale: env_value("APP_STORE_PRIMARY_LOCALE", "en-US"),
+      bundle_id: APP_IDENTIFIER,
+      platforms: ["IOS"],
+      company_name: require_env("APP_STORE_COMPANY_NAME")
+    )
+  rescue StandardError => error
+    UI.user_error!(
+      "Unable to create the App Store Connect app record automatically: #{error.message}. " \
+      "Fastlane can find existing apps with API-key auth, but first-time app creation may " \
+      "still require an Apple ID session or manual setup in App Store Connect."
+    )
+  end
+end
+
+def sync_signing(api_key)
+  team_id = require_env("APPLE_TEAM_ID")
+
+  update_code_signing_settings(
+    path: XCODEPROJ,
+    use_automatic_signing: false,
+    team_id: team_id,
+    targets: [SCHEME]
+  )
+
+  if env_value("MATCH_GIT_URL").nil?
+    UI.important("MATCH_GIT_URL is not set; using signing assets already installed on the runner.")
+    return
+  end
+
+  match_options = {
+    api_key: api_key,
+    app_identifier: APP_IDENTIFIER,
+    git_url: require_env("MATCH_GIT_URL"),
+    git_branch: env_value("MATCH_GIT_BRANCH", "main"),
+    readonly: is_ci,
+    type: "appstore"
+  }
+
+  git_basic_authorization = env_value("MATCH_GIT_BASIC_AUTHORIZATION")
+  match_options[:git_basic_authorization] = git_basic_authorization unless git_basic_authorization.nil?
+
+  match(**match_options)
+end
+
+def next_build_number(api_key, version)
+  latest_build = latest_testflight_build_number(
+    api_key: api_key,
+    app_identifier: APP_IDENTIFIER,
+    version: version,
+    initial_build_number: 0,
+    platform: "ios"
+  )
+
+  latest_build.to_i + 1
+end
+
+platform :ios do
+  before_all do
+    setup_ci if is_ci
+  end
+
+  desc "Build, upload, and submit Birthdays for App Store review"
+  lane :release do
+    api_key = app_store_api_key
+    version = env_value("APP_VERSION", package_version)
+
+    ensure_app_store_record!(version)
+    sync_signing(api_key)
+
+    increment_version_number(
+      version_number: version,
+      xcodeproj: XCODEPROJ
+    )
+
+    increment_build_number(
+      build_number: next_build_number(api_key, version),
+      xcodeproj: XCODEPROJ
+    )
+
+    build_app(
+      project: XCODEPROJ,
+      scheme: SCHEME,
+      clean: true,
+      export_method: "app-store",
+      output_directory: "output",
+      output_name: "#{APP_NAME}.ipa",
+      xcargs: "DEVELOPMENT_TEAM=#{require_env("APPLE_TEAM_ID")}",
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        teamID: require_env("APPLE_TEAM_ID")
+      }
+    )
+
+    deliver(
+      api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
+      app_version: version,
+      ipa: "output/#{APP_NAME}.ipa",
+      metadata_path: "./fastlane/metadata",
+      screenshots_path: "./fastlane/screenshots",
+      app_rating_config_path: "./fastlane/metadata/app_store_rating_config.json",
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      run_precheck_before_submit: true,
+      skip_screenshots: env_value("FASTLANE_SKIP_SCREENSHOTS", "true") == "true",
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        content_rights_contains_third_party_content: false,
+        export_compliance_encryption_updated: false,
+        export_compliance_uses_encryption: false
+      },
+      app_review_information: compact_hash({
+        first_name: env_value("APP_REVIEW_FIRST_NAME", "Banbury"),
+        last_name: env_value("APP_REVIEW_LAST_NAME", "Team"),
+        phone_number: env_value("APP_REVIEW_PHONE_NUMBER"),
+        email_address: require_env("APP_REVIEW_EMAIL"),
+        demo_user: env_value("APP_REVIEW_DEMO_USER"),
+        demo_password: env_value("APP_REVIEW_DEMO_PASSWORD"),
+        notes: env_value("APP_REVIEW_NOTES", "This app uses phone-number sign-in and contact access to match friends' birthdays.")
+      })
+    )
+  end
+end
