@@ -58,10 +58,17 @@ Terraform will output:
 - `cloudfront_distribution_id`
 - `cloudfront_domain_name`
 - `site_url`
+- `api_url`
+- `cognito_user_pool_id`
+- `cognito_user_pool_client_id`
 - `database_endpoint`
 - `database_name`
 - `database_username`
 - `database_master_user_secret_arn`
+
+Use `api_url`, `cognito_user_pool_id`, and `cognito_user_pool_client_id` as the matching `VITE_API_BASE_URL`, `VITE_COGNITO_USER_POOL_ID`, and `VITE_COGNITO_USER_POOL_CLIENT_ID` values for local development. GitHub Actions reads these outputs after Terraform apply and passes them into the Vite build automatically.
+
+The Cognito user pool sends SMS OTP codes through Amazon SNS. In new or sandboxed AWS accounts, SNS SMS can only deliver to verified destination phone numbers until production SMS access is enabled. Check the account's SNS SMS sandbox, origination identity, and monthly spend limit settings before testing codes with unverified numbers.
 
 The database password is generated and stored by AWS Secrets Manager. Retrieve it with:
 
@@ -94,7 +101,8 @@ On each deployment it:
 - Initializes Terraform with the S3 remote backend.
 - Runs `terraform fmt -check`, `terraform validate`, and `terraform apply -auto-approve`.
 - Installs dependencies with `npm ci`.
-- Builds the Vite app.
+- Reads Terraform outputs for the API URL, Cognito user pool ID, and Cognito app client ID.
+- Builds the Vite app with those outputs as `VITE_` environment variables.
 - Syncs `dist/` to the Terraform-managed S3 site bucket.
 - Invalidates the Terraform-managed CloudFront distribution.
 

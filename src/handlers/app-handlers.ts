@@ -47,6 +47,7 @@ export interface AppState {
   profileName: string
   step: AppStep
   successMessage: string
+  termsAccepted: boolean
 }
 
 interface AppActions {
@@ -67,6 +68,7 @@ export const initialAppState: AppState = {
   profileName: "",
   step: "phone",
   successMessage: "",
+  termsAccepted: false,
 }
 
 function setLoading(actions: AppActions, isLoading: boolean) {
@@ -87,6 +89,15 @@ function setError(actions: AppActions, error: unknown) {
     errorMessage,
     isLoading: false,
   }))
+}
+
+function readAppState(actions: AppActions) {
+  return new Promise<AppState>((resolve) => {
+    actions.setState((state) => {
+      resolve(state)
+      return state
+    })
+  })
 }
 
 async function loadProfileAndMatches(actions: AppActions) {
@@ -169,37 +180,21 @@ export async function submitPhoneNumber(actions: AppActions) {
   setLoading(actions, true)
 
   try {
-    actions.setState((state) => {
-      const normalizedPhone = normalizePhoneNumber(
-        state.phoneNumber,
-        appConfig.defaultCountry
-      )
+    const currentState = await readAppState(actions)
+    const normalizedPhone = normalizePhoneNumber(
+      currentState.phoneNumber,
+      appConfig.defaultCountry
+    )
 
-      if (!normalizedPhone) {
-        throw new Error("Enter a valid phone number.")
-      }
+    if (!normalizedPhone) throw new Error("Enter a valid phone number.")
 
-      return {
-        ...state,
-        phoneNumber: normalizedPhone.e164,
-      }
-    })
-
-    const currentState = await new Promise<AppState>((resolve) => {
-      actions.setState((state) => {
-        resolve(state)
-        return state
-      })
-    })
-
-    await startPhoneSignIn(currentState.phoneNumber)
+    await startPhoneSignIn(normalizedPhone.e164)
     actions.setState((state) => ({
       ...state,
       isLoading: false,
+      phoneNumber: normalizedPhone.e164,
       step: "otp",
-      successMessage: isAuthConfigured()
-        ? "We sent a login code to your phone."
-        : "Auth is not configured yet, so this screen is running in preview mode.",
+      successMessage: "We sent a login code to your phone.",
     }))
   } catch (error) {
     setError(actions, error)
@@ -210,17 +205,13 @@ export async function submitOtp(actions: AppActions) {
   setLoading(actions, true)
 
   try {
-    await confirmPhoneSignIn(
-      await new Promise<string>((resolve) => {
-        actions.setState((state) => {
-          resolve(state.code)
-          return state
-        })
-      })
-    )
+    const currentState = await readAppState(actions)
+
+    await confirmPhoneSignIn(currentState.code)
     await loadProfileAndMatches(actions)
     actions.setState((state) => ({
       ...state,
+      code: "",
       isLoading: false,
     }))
   } catch (error) {
@@ -279,9 +270,9 @@ export async function syncDeviceContacts(actions: AppActions) {
       contactsSyncedCount: contacts.length,
       isLoading: false,
       matches,
-      step: "home",
+      step: "terms",
       successMessage: contacts.length
-        ? "Contacts synced."
+        ? "Contacts synced. Review the terms to continue."
         : "Open the iPhone app to grant Contacts permission and sync your address book.",
     }))
   } catch (error) {
@@ -326,6 +317,24 @@ export function handleProfileSubmit(
 
 export function handleContactsSync(actions: AppActions) {
   void syncDeviceContacts(actions)
+}
+
+export function handleTermsContinue(actions: AppActions) {
+  actions.setState((state) => {
+    if (!state.termsAccepted) {
+      return {
+        ...state,
+        errorMessage: "Accept the terms to continue.",
+      }
+    }
+
+    return {
+      ...state,
+      errorMessage: "",
+      step: "home",
+      successMessage: "",
+    }
+  })
 }
 
 export function handleSignOut(actions: AppActions) {

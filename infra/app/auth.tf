@@ -77,7 +77,7 @@ resource "aws_cognito_user_pool_client" "app" {
   enable_token_revocation       = true
   explicit_auth_flows           = ["ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_AUTH"]
   id_token_validity             = 60
-  prevent_user_existence_errors = "ENABLED"
+  prevent_user_existence_errors = "LEGACY"
   refresh_token_validity        = 30
 
   token_validity_units {

@@ -16,9 +16,23 @@ interface AuthenticatedUser {
   phoneNumber: string
 }
 
+interface CognitoErrorLike {
+  code?: string
+  message?: string
+  name?: string
+  __type?: string
+}
+
+type PendingAuthFlow = "sign-in" | "sign-up" | null
+
 let isAmplifyConfigured = false
 let pendingPhoneNumber = ""
-let pendingSignUpConfirmation = false
+let pendingAuthFlow: PendingAuthFlow = null
+
+function clearPendingAuthFlow() {
+  pendingPhoneNumber = ""
+  pendingAuthFlow = null
+}
 
 function configureAmplify() {
   if (isAmplifyConfigured || !isAuthConfigured()) return
@@ -38,13 +52,83 @@ function configureAmplify() {
   isAmplifyConfigured = true
 }
 
+function getCognitoError(error: unknown): CognitoErrorLike {
+  if (typeof error !== "object" || error === null) return {}
+
+  return error as CognitoErrorLike
+}
+
+function getCognitoErrorText(error: unknown) {
+  const cognitoError = getCognitoError(error)
+
+  return [
+    cognitoError.name,
+    cognitoError.code,
+    cognitoError.__type,
+    cognitoError.message,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+}
+
+function isUserNotFoundError(error: unknown) {
+  const errorText = getCognitoErrorText(error)
+
+  return (
+    errorText.includes("usernotfoundexception") ||
+    errorText.includes("user does not exist")
+  )
+}
+
+function toPhoneAuthError(error: unknown) {
+  const errorText = getCognitoErrorText(error)
+
+  if (errorText.includes("codemismatchexception")) {
+    return new Error("That code is not correct. Check the text and try again.")
+  }
+
+  if (errorText.includes("expiredcodeexception")) {
+    return new Error("That code expired. Request a new login code.")
+  }
+
+  if (
+    errorText.includes("limitexceededexception") ||
+    errorText.includes("toomanyrequestsexception") ||
+    errorText.includes("too many")
+  ) {
+    return new Error("Too many attempts. Wait a few minutes and try again.")
+  }
+
+  if (
+    errorText.includes("sms") ||
+    errorText.includes("sns") ||
+    errorText.includes("phone")
+  ) {
+    return new Error(
+      "We could not send a text to that number. Check the number and AWS SMS settings, then try again."
+    )
+  }
+
+  if (error instanceof Error) return error
+
+  return new Error("Phone authorization failed. Try again.")
+}
+
+function assertAuthConfigured() {
+  if (isAuthConfigured()) return
+
+  throw new Error(
+    "Phone login is not configured. Set VITE_COGNITO_USER_POOL_ID and VITE_COGNITO_USER_POOL_CLIENT_ID."
+  )
+}
+
 export async function startPhoneSignIn(phoneNumber: string) {
+  assertAuthConfigured()
   configureAmplify()
 
-  if (!isAuthConfigured()) return
-
   pendingPhoneNumber = phoneNumber
-  pendingSignUpConfirmation = false
+  pendingAuthFlow = null
 
   try {
     await signIn({
@@ -54,45 +138,66 @@ export async function startPhoneSignIn(phoneNumber: string) {
         preferredChallenge: "SMS_OTP",
       },
     })
+    pendingAuthFlow = "sign-in"
   } catch (error) {
-    const message = error instanceof Error ? error.message : ""
+    if (!isUserNotFoundError(error)) throw toPhoneAuthError(error)
 
-    if (!message.includes("User does not exist")) throw error
-
-    await signUp({
-      username: phoneNumber,
-      options: {
-        autoSignIn: {
-          authFlowType: "USER_AUTH",
-          preferredChallenge: "SMS_OTP",
+    try {
+      await signUp({
+        username: phoneNumber,
+        options: {
+          autoSignIn: {
+            authFlowType: "USER_AUTH",
+            preferredChallenge: "SMS_OTP",
+          },
+          userAttributes: {
+            phone_number: phoneNumber,
+          },
         },
-        userAttributes: {
-          phone_number: phoneNumber,
-        },
-      },
-    })
-    pendingSignUpConfirmation = true
+      })
+      pendingAuthFlow = "sign-up"
+    } catch (signUpError) {
+      throw toPhoneAuthError(signUpError)
+    }
   }
 }
 
 export async function confirmPhoneSignIn(code: string) {
+  assertAuthConfigured()
   configureAmplify()
 
-  if (!isAuthConfigured()) return
+  const confirmationCode = code.trim()
 
-  if (pendingSignUpConfirmation) {
-    await confirmSignUp({
-      confirmationCode: code,
-      username: pendingPhoneNumber,
-    })
-    await autoSignIn()
-    pendingSignUpConfirmation = false
-    return
+  if (!confirmationCode) throw new Error("Enter the code from your text.")
+  if (!pendingPhoneNumber || !pendingAuthFlow) {
+    throw new Error("Request a new login code before confirming.")
   }
 
-  await confirmSignIn({
-    challengeResponse: code,
-  })
+  try {
+    if (pendingAuthFlow === "sign-up") {
+      await confirmSignUp({
+        confirmationCode,
+        username: pendingPhoneNumber,
+      })
+      clearPendingAuthFlow()
+
+      const signInResult = await autoSignIn()
+
+      if (!signInResult.isSignedIn) {
+        throw new Error(
+          "Sign-in was not completed after registration. Request a new login code and try again."
+        )
+      }
+      return
+    }
+
+    await confirmSignIn({
+      challengeResponse: confirmationCode,
+    })
+    clearPendingAuthFlow()
+  } catch (error) {
+    throw toPhoneAuthError(error)
+  }
 }
 
 export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> {

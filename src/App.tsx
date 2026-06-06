@@ -46,6 +46,7 @@ import {
   handlePhoneSubmit,
   handleProfileSubmit,
   handleSignOut,
+  handleTermsContinue,
   initialAppState,
   startHomeMatchesPolling,
   updateField,
@@ -60,17 +61,6 @@ function getInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("")
-}
-
-function getBirthdayLabel(birthday: string) {
-  const date = new Date(`${birthday}T00:00:00`)
-
-  if (Number.isNaN(date.getTime())) return birthday
-
-  return new Intl.DateTimeFormat(undefined, {
-    day: "numeric",
-    month: "long",
-  }).format(date)
 }
 
 function StatusMessage({ state }: { state: AppState }) {
@@ -334,16 +324,35 @@ export function App() {
                 number saved in their contacts may be able to see your name and
                 birthday after they join the app and sync their contacts.
               </p>
-              <div className="rounded-lg border bg-muted p-4 text-foreground">
-                Yes, I am okay with everyone that has my phone number seeing my
-                birthday.
-              </div>
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-muted p-4 text-foreground">
+                <input
+                  checked={state.termsAccepted}
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
+                  onChange={(event) =>
+                    updateField(actions, "termsAccepted", event.target.checked)
+                  }
+                  type="checkbox"
+                />
+                <span>
+                  Yes, I am okay with everyone that has my phone number seeing
+                  my birthday.
+                </span>
+              </label>
               <p>
                 Your contacts are used to find matches. We do not show your
                 birthday to people unless their synced contacts include your
                 phone number.
               </p>
             </CardContent>
+            <CardFooter>
+              <Button
+                className="w-full"
+                disabled={!state.termsAccepted || state.isLoading}
+                onClick={() => handleTermsContinue(actions)}
+              >
+                Continue
+              </Button>
+            </CardFooter>
           </Card>
         ) : null}
 
