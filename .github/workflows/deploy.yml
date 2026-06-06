@@ -65,7 +65,13 @@ jobs:
 
       - name: Terraform apply
         working-directory: infra/app
-        run: terraform apply -auto-approve
+        run: |
+          if terraform state list | grep -q '^aws_apigatewayv2_authorizer\.api$'; then
+            echo "Legacy API authorizer found in state. Applying route updates first to detach authorizer references."
+            terraform apply -auto-approve -target=aws_apigatewayv2_route.api
+          fi
+
+          terraform apply -auto-approve
 
       - name: Setup Node
         uses: actions/setup-node@v4
