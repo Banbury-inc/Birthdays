@@ -30,8 +30,8 @@ export const appStepOptions: { label: string; step: AppStep }[] = [
   { label: "Phone login", step: "phone" },
   { label: "Confirm code", step: "otp" },
   { label: "Confirm birthday", step: "profile" },
-  { label: "Sync contacts", step: "contacts" },
   { label: "Terms", step: "terms" },
+  { label: "Sync contacts", step: "contacts" },
   { label: "Home", step: "home" },
 ]
 
@@ -247,8 +247,8 @@ export async function submitProfile(actions: AppActions) {
       ...currentState,
       isLoading: false,
       profile,
-      step: "contacts",
-      successMessage: "Birthday confirmed. Now sync contacts.",
+      step: "terms",
+      successMessage: "Birthday confirmed. Review the terms to continue.",
     }))
   } catch (error) {
     setError(actions, error)
@@ -270,9 +270,9 @@ export async function syncDeviceContacts(actions: AppActions) {
       contactsSyncedCount: contacts.length,
       isLoading: false,
       matches,
-      step: "terms",
+      step: "home",
       successMessage: contacts.length
-        ? "Contacts synced. Review the terms to continue."
+        ? "Contacts synced."
         : "Open the iPhone app to grant Contacts permission and sync your address book.",
     }))
   } catch (error) {
@@ -331,7 +331,7 @@ export function handleTermsContinue(actions: AppActions) {
     return {
       ...state,
       errorMessage: "",
-      step: "home",
+      step: "contacts",
       successMessage: "",
     }
   })

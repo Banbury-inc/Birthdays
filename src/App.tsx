@@ -54,6 +54,13 @@ import {
   type AppStep,
 } from "@/handlers/app-handlers"
 
+interface BirthdayListItem {
+  birthday: string
+  displayName: string
+  id: string
+  label: "Contact" | "You"
+}
+
 function getInitials(name: string) {
   return name
     .split(" ")
@@ -61,6 +68,17 @@ function getInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("")
+}
+
+function formatBirthday(birthday: string) {
+  const birthdayDate = new Date(`${birthday}T00:00:00`)
+
+  if (Number.isNaN(birthdayDate.getTime())) return birthday
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "long",
+  }).format(birthdayDate)
 }
 
 function StatusMessage({ state }: { state: AppState }) {
@@ -84,6 +102,28 @@ function StatusMessage({ state }: { state: AppState }) {
 export function App() {
   const [state, setState] = useState(initialAppState)
   const actions = useMemo(() => ({ setState }), [])
+  const birthdayList = useMemo<BirthdayListItem[]>(() => {
+    const profileBirthday = state.profile
+      ? [
+          {
+            birthday: state.profile.birthday,
+            displayName: state.profile.displayName,
+            id: state.profile.id,
+            label: "You",
+          },
+        ]
+      : []
+
+    return [
+      ...profileBirthday,
+      ...state.matches.map((match) => ({
+        birthday: match.birthday,
+        displayName: match.displayName,
+        id: match.id,
+        label: "Contact",
+      })),
+    ]
+  }, [state.matches, state.profile])
 
   useEffect(() => {
     void bootstrapSession(actions)
@@ -101,7 +141,7 @@ export function App() {
         <header className="flex items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
             <h1 className="font-heading text-3xl font-semibold tracking-tight">
-              Your contacts, only when they join.
+              Birthdays
             </h1>
           </div>
           <DropdownMenu>
@@ -366,9 +406,9 @@ export function App() {
                     : "Birthday contacts"}
                 </CardTitle>
                 <CardDescription>
-                  {state.matches.length
-                    ? `${state.matches.length} contacts use the app`
-                    : "No matched contacts yet"}
+                  {birthdayList.length === 1
+                    ? "1 birthday saved"
+                    : `${birthdayList.length} birthdays saved`}
                 </CardDescription>
                 <CardAction>
                   <Badge variant="outline">
@@ -396,6 +436,49 @@ export function App() {
               ) : null}
             </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle>Birthdays</CardTitle>
+                <CardDescription>
+                  Your birthday appears with matched contacts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul aria-label="Birthday list" className="flex flex-col gap-3">
+                  {birthdayList.length ? (
+                    birthdayList.map((birthday) => (
+                      <li
+                        className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3"
+                        key={`${birthday.label}-${birthday.id}`}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback>
+                              {getInitials(birthday.displayName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {birthday.displayName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {birthday.label}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className="shrink-0" variant="secondary">
+                          {formatBirthday(birthday.birthday)}
+                        </Badge>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="rounded-lg border bg-muted p-3 text-sm text-muted-foreground">
+                      No birthdays yet.
+                    </li>
+                  )}
+                </ul>
+              </CardContent>
+            </Card>
           </>
         ) : null}
       </div>
