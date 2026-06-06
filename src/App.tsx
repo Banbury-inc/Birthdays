@@ -220,7 +220,7 @@ export function App() {
               </CardAction>
             </CardHeader>
             <form onSubmit={(event) => handlePhoneSubmit(event, actions)}>
-              <CardContent>
+              <CardContent className="pb-4">
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Phone number
                   <input
@@ -451,9 +451,6 @@ export function App() {
             <Card>
               <CardHeader>
                 <CardTitle>Birthdays</CardTitle>
-                <CardDescription>
-                  Your birthday appears with matched contacts.
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul aria-label="Birthday list" className="flex flex-col gap-3">
