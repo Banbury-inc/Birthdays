@@ -81,6 +81,22 @@ function formatBirthday(birthday: string) {
   }).format(birthdayDate)
 }
 
+function BirthdayAvatar({
+  name,
+  size = "default",
+}: {
+  name: string
+  size?: "default" | "sm" | "lg"
+}) {
+  return (
+    <Avatar aria-label={`${name} avatar`} size={size}>
+      <AvatarFallback className="bg-primary/10 font-medium text-primary">
+        {getInitials(name) || "?"}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
 function StatusMessage({ state }: { state: AppState }) {
   if (state.errorMessage) {
     return (
@@ -420,11 +436,7 @@ export function App() {
                 <CardFooter>
                   <AvatarGroup>
                     {state.matches.slice(0, 3).map((match) => (
-                      <Avatar key={match.id}>
-                        <AvatarFallback>
-                          {getInitials(match.displayName)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <BirthdayAvatar key={match.id} name={match.displayName} />
                     ))}
                     {state.matches.length > 3 ? (
                       <AvatarGroupCount>
@@ -452,11 +464,10 @@ export function App() {
                         key={`${birthday.label}-${birthday.id}`}
                       >
                         <div className="flex min-w-0 items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback>
-                              {getInitials(birthday.displayName)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <BirthdayAvatar
+                            name={birthday.displayName}
+                            size="lg"
+                          />
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">
                               {birthday.displayName}
