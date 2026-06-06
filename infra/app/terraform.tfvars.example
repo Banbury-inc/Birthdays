@@ -10,6 +10,14 @@ database_instance_class = "db.t4g.micro"
 # Example: ["198.51.100.25/32"]
 database_allowed_cidr_blocks = ["203.0.113.10/32"]
 
+# Restrict this to the deployed CloudFront origin for production.
+# api_allowed_origins = ["https://example.cloudfront.net"]
+
+# Prefer TF_VAR_* environment variables or GitHub Actions secrets for these.
+# twilio_account_sid        = "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# twilio_auth_token         = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# twilio_verify_service_sid = "VAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
 # Set this if you want stable names without relying on the generated random suffix.
 # resource_suffix = "prod"
 

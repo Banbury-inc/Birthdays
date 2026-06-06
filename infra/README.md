@@ -59,16 +59,22 @@ Terraform will output:
 - `cloudfront_domain_name`
 - `site_url`
 - `api_url`
-- `cognito_user_pool_id`
-- `cognito_user_pool_client_id`
 - `database_endpoint`
 - `database_name`
 - `database_username`
 - `database_master_user_secret_arn`
 
-Use `api_url`, `cognito_user_pool_id`, and `cognito_user_pool_client_id` as the matching `VITE_API_BASE_URL`, `VITE_COGNITO_USER_POOL_ID`, and `VITE_COGNITO_USER_POOL_CLIENT_ID` values for local development. GitHub Actions reads these outputs after Terraform apply and passes them into the Vite build automatically.
+Use `api_url` as the matching `VITE_API_BASE_URL` value for local development. GitHub Actions reads this output after Terraform apply and passes it into the Vite build automatically.
 
-The Cognito user pool sends SMS OTP codes through Amazon SNS. In new or sandboxed AWS accounts, SNS SMS can only deliver to verified destination phone numbers until production SMS access is enabled. Check the account's SNS SMS sandbox, origination identity, and monthly spend limit settings before testing codes with unverified numbers.
+Phone login uses Twilio Verify. Terraform stores the Twilio credentials in AWS Secrets Manager for the API Lambda. Provide these sensitive variables when applying `infra/app`:
+
+```bash
+TF_VAR_twilio_account_sid=
+TF_VAR_twilio_auth_token=
+TF_VAR_twilio_verify_service_sid=
+```
+
+The API Lambda runs in private subnets with NAT access so it can reach Twilio over HTTPS while still connecting to PostgreSQL.
 
 The database password is generated and stored by AWS Secrets Manager. Retrieve it with:
 
@@ -101,8 +107,8 @@ On each deployment it:
 - Initializes Terraform with the S3 remote backend.
 - Runs `terraform fmt -check`, `terraform validate`, and `terraform apply -auto-approve`.
 - Installs dependencies with `npm ci`.
-- Reads Terraform outputs for the API URL, Cognito user pool ID, and Cognito app client ID.
-- Builds the Vite app with those outputs as `VITE_` environment variables.
+- Reads the Terraform API URL output.
+- Builds the Vite app with the API URL as a `VITE_` environment variable.
 - Syncs `dist/` to the Terraform-managed S3 site bucket.
 - Invalidates the Terraform-managed CloudFront distribution.
 
@@ -115,6 +121,14 @@ Before the workflow can run, apply `infra/bootstrap` once so the remote state bu
 | `TF_STATE_BUCKET` | `birthdays-terraform-state-abcd1234` | S3 bucket created by `infra/bootstrap`. |
 | `TF_STATE_KEY` | `birthdays/app/terraform.tfstate` | S3 object key for the app stack state. |
 | `DATABASE_ALLOWED_CIDR_BLOCKS` | `["198.51.100.25/32"]` | CIDR allowlist for public PostgreSQL access. |
+
+Create these GitHub repository secrets for Twilio Verify:
+
+| Secret | Purpose |
+| --- | --- |
+| `TWILIO_ACCOUNT_SID` | Twilio Account SID used by the API Lambda. |
+| `TWILIO_AUTH_TOKEN` | Twilio Auth Token used by the API Lambda. |
+| `TWILIO_VERIFY_SERVICE_SID` | Twilio Verify Service SID that sends login codes. |
 
 The AWS role should trust `token.actions.githubusercontent.com` and be scoped to this repository. It needs permissions for Terraform to manage the resources in `infra/app`, plus S3 object uploads and CloudFront invalidations for deployments.
 

@@ -1,4 +1,6 @@
 const crypto = require("node:crypto")
+const https = require("node:https")
+const querystring = require("node:querystring")
 const { SecretsManagerClient, GetSecretValueCommand } = require("@aws-sdk/client-secrets-manager")
 const { Pool } = require("pg")
 
@@ -7,6 +9,8 @@ const secretsClient = new SecretsManagerClient({})
 let contactHashSecret
 let databaseSecret
 let pool
+let sessionTokenSecret
+let twilioConfig
 
 function json(statusCode, body) {
   return {
@@ -16,6 +20,21 @@ function json(statusCode, body) {
     },
     statusCode,
   }
+}
+
+function base64UrlEncode(value) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+}
+
+function base64UrlDecode(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/")
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4)
+
+  return Buffer.from(`${base64}${padding}`, "base64").toString("utf8")
 }
 
 async function readSecret(secretId) {
@@ -46,6 +65,22 @@ async function getDatabaseSecret() {
   return databaseSecret
 }
 
+async function getSessionTokenSecret() {
+  if (!sessionTokenSecret) {
+    sessionTokenSecret = await readSecret(process.env.SESSION_TOKEN_SECRET_ARN)
+  }
+
+  return sessionTokenSecret
+}
+
+async function getTwilioConfig() {
+  if (!twilioConfig) {
+    twilioConfig = JSON.parse(await readSecret(process.env.TWILIO_CONFIG_SECRET_ARN))
+  }
+
+  return twilioConfig
+}
+
 async function getPool() {
   if (pool) return pool
 
@@ -74,12 +109,179 @@ async function hashPhoneNumber(phoneNumber) {
     .digest("hex")
 }
 
-function getClaims(event) {
-  return event.requestContext?.authorizer?.jwt?.claims ?? {}
+async function getAuthSubject(phoneNumber) {
+  const phoneHash = await hashPhoneNumber(phoneNumber)
+
+  return `phone:${phoneHash}`
 }
 
 function getRoute(event) {
   return `${event.requestContext.http.method} ${event.rawPath}`
+}
+
+async function callTwilioVerify(path, body) {
+  const config = await getTwilioConfig()
+  const postBody = querystring.stringify(body)
+  const authorization = Buffer.from(
+    `${config.accountSid}:${config.authToken}`
+  ).toString("base64")
+
+  return new Promise((resolve, reject) => {
+    const request = https.request(
+      {
+        headers: {
+          Authorization: `Basic ${authorization}`,
+          "Content-Length": Buffer.byteLength(postBody),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        hostname: "verify.twilio.com",
+        method: "POST",
+        path: `/v2/Services/${config.verifyServiceSid}${path}`,
+      },
+      (response) => {
+        const chunks = []
+
+        response.on("data", (chunk) => chunks.push(chunk))
+        response.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8")
+          let data = {}
+
+          try {
+            data = text ? JSON.parse(text) : {}
+          } catch {
+            data = {
+              message: text.slice(0, 200) || "Twilio Verify request failed.",
+            }
+          }
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            resolve(data)
+            return
+          }
+
+          reject(new Error(data.message || "Twilio Verify request failed."))
+        })
+      }
+    )
+
+    request.on("error", reject)
+    request.write(postBody)
+    request.end()
+  })
+}
+
+async function startPhoneVerification(body) {
+  if (!body.phoneNumber) throw new Error("phoneNumber is required.")
+
+  await callTwilioVerify("/Verifications", {
+    Channel: "sms",
+    To: body.phoneNumber,
+  })
+
+  return {
+    status: "pending",
+  }
+}
+
+async function createSessionToken(phoneNumber) {
+  const now = Math.floor(Date.now() / 1000)
+  const ttlSeconds = Number(process.env.SESSION_TOKEN_TTL_SECONDS || 2592000)
+  const payload = {
+    exp: now + ttlSeconds,
+    iat: now,
+    phoneNumber,
+    sub: await getAuthSubject(phoneNumber),
+  }
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload))
+  const secret = await getSessionTokenSecret()
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(encodedPayload)
+    .digest("base64url")
+
+  return `${encodedPayload}.${signature}`
+}
+
+async function verifyPhoneCode(body) {
+  if (!body.phoneNumber) throw new Error("phoneNumber is required.")
+  if (!body.code) throw new Error("code is required.")
+
+  const verification = await callTwilioVerify("/VerificationCheck", {
+    Code: body.code,
+    To: body.phoneNumber,
+  })
+
+  if (verification.status !== "approved") {
+    throw new Error("That code is not correct. Check the text and try again.")
+  }
+
+  return {
+    token: await createSessionToken(body.phoneNumber),
+  }
+}
+
+async function verifySessionToken(event) {
+  const authHeader = event.headers?.authorization || event.headers?.Authorization || ""
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : ""
+
+  if (!token) return null
+
+  const [encodedPayload, signature] = token.split(".")
+
+  if (!encodedPayload || !signature) return null
+
+  const secret = await getSessionTokenSecret()
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(encodedPayload)
+    .digest("base64url")
+
+  try {
+    if (
+      !crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature)
+      )
+    ) {
+      return null
+    }
+  } catch {
+    return null
+  }
+
+  const claims = JSON.parse(base64UrlDecode(encodedPayload))
+
+  if (!claims.sub || !claims.phoneNumber || claims.exp * 1000 <= Date.now()) {
+    return null
+  }
+
+  return claims
+}
+
+async function ensureAuthSchema(client) {
+  await client.query(`
+    do $$
+    begin
+      if exists (
+        select 1
+        from information_schema.columns
+        where table_name = 'users'
+          and column_name = 'cognito_sub'
+      ) and not exists (
+        select 1
+        from information_schema.columns
+        where table_name = 'users'
+          and column_name = 'auth_subject'
+      ) then
+        alter table users rename column cognito_sub to auth_subject;
+      end if;
+    end $$;
+  `)
+
+  await client.query(`
+    create unique index if not exists users_auth_subject_idx
+      on users (auth_subject)
+  `)
 }
 
 async function getCurrentUser(client, claims) {
@@ -87,7 +289,7 @@ async function getCurrentUser(client, claims) {
     `
       select id, phone_number, display_name, birthday, birthday_confirmed_at
       from users
-      where cognito_sub = $1
+      where auth_subject = $1
     `,
     [claims.sub]
   )
@@ -106,9 +308,9 @@ async function getCurrentUser(client, claims) {
 }
 
 async function saveCurrentUser(client, claims, body) {
-  const phoneNumber = claims.phone_number
+  const phoneNumber = claims.phoneNumber
 
-  if (!phoneNumber) throw new Error("Cognito token is missing phone_number.")
+  if (!phoneNumber) throw new Error("Session token is missing phoneNumber.")
   if (!body.displayName?.trim()) throw new Error("displayName is required.")
   if (!body.birthday) throw new Error("birthday is required.")
 
@@ -116,7 +318,7 @@ async function saveCurrentUser(client, claims, body) {
   const result = await client.query(
     `
       insert into users (
-        cognito_sub,
+        auth_subject,
         phone_number,
         phone_hash,
         display_name,
@@ -124,7 +326,8 @@ async function saveCurrentUser(client, claims, body) {
         birthday_confirmed_at
       )
       values ($1, $2, $3, $4, $5, now())
-      on conflict (cognito_sub) do update set
+      on conflict (phone_number) do update set
+        auth_subject = excluded.auth_subject,
         phone_number = excluded.phone_number,
         phone_hash = excluded.phone_hash,
         display_name = excluded.display_name,
@@ -164,19 +367,28 @@ async function syncContactsForUser(client, claims, body) {
     })
   }
 
-  await client.query("delete from contact_syncs where owner_user_id = $1", [user.id])
+  await client.query("begin")
 
-  for (const row of rows) {
-    await client.query(
-      `
-        insert into contact_syncs (owner_user_id, contact_phone_hash, local_display_name)
-        values ($1, $2, $3)
-        on conflict (owner_user_id, contact_phone_hash) do update set
-          local_display_name = excluded.local_display_name,
-          synced_at = now()
-      `,
-      [user.id, row.phoneHash, row.displayName]
-    )
+  try {
+    await client.query("delete from contact_syncs where owner_user_id = $1", [user.id])
+
+    for (const row of rows) {
+      await client.query(
+        `
+          insert into contact_syncs (owner_user_id, contact_phone_hash, local_display_name)
+          values ($1, $2, $3)
+          on conflict (owner_user_id, contact_phone_hash) do update set
+            local_display_name = excluded.local_display_name,
+            synced_at = now()
+        `,
+        [user.id, row.phoneHash, row.displayName]
+      )
+    }
+
+    await client.query("commit")
+  } catch (error) {
+    await client.query("rollback")
+    throw error
   }
 
   return {
@@ -210,14 +422,27 @@ async function getContactMatches(client, claims) {
 }
 
 exports.handler = async function handler(event) {
+  const route = getRoute(event)
+  const body = event.body ? JSON.parse(event.body) : {}
+
+  try {
+    if (route === "POST /auth/start") return json(200, await startPhoneVerification(body))
+    if (route === "POST /auth/verify") return json(200, await verifyPhoneCode(body))
+  } catch (error) {
+    console.error(error)
+    return json(400, {
+      message: error instanceof Error ? error.message : "Phone authorization failed.",
+    })
+  }
+
+  const claims = await verifySessionToken(event)
+
+  if (!claims) return json(401, { message: "Unauthorized." })
+
   const client = await (await getPool()).connect()
 
   try {
-    const claims = getClaims(event)
-    const route = getRoute(event)
-    const body = event.body ? JSON.parse(event.body) : {}
-
-    if (!claims.sub) return json(401, { message: "Unauthorized." })
+    await ensureAuthSchema(client)
 
     if (route === "GET /me") return json(200, await getCurrentUser(client, claims))
     if (route === "PUT /me") return json(200, await saveCurrentUser(client, claims, body))

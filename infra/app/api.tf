@@ -8,6 +8,11 @@ resource "random_password" "contact_hash_secret" {
   special = false
 }
 
+resource "random_password" "session_token_secret" {
+  length  = 64
+  special = false
+}
+
 resource "aws_secretsmanager_secret" "contact_hash_secret" {
   name = "${var.project_name}/contact-hash-secret-${local.resource_suffix}"
   tags = local.tags
@@ -16,6 +21,30 @@ resource "aws_secretsmanager_secret" "contact_hash_secret" {
 resource "aws_secretsmanager_secret_version" "contact_hash_secret" {
   secret_id     = aws_secretsmanager_secret.contact_hash_secret.id
   secret_string = random_password.contact_hash_secret.result
+}
+
+resource "aws_secretsmanager_secret" "session_token_secret" {
+  name = "${var.project_name}/session-token-secret-${local.resource_suffix}"
+  tags = local.tags
+}
+
+resource "aws_secretsmanager_secret_version" "session_token_secret" {
+  secret_id     = aws_secretsmanager_secret.session_token_secret.id
+  secret_string = random_password.session_token_secret.result
+}
+
+resource "aws_secretsmanager_secret" "twilio_config" {
+  name = "${var.project_name}/twilio-config-${local.resource_suffix}"
+  tags = local.tags
+}
+
+resource "aws_secretsmanager_secret_version" "twilio_config" {
+  secret_id = aws_secretsmanager_secret.twilio_config.id
+  secret_string = jsonencode({
+    accountSid       = var.twilio_account_sid
+    authToken        = var.twilio_auth_token
+    verifyServiceSid = var.twilio_verify_service_sid
+  })
 }
 
 data "archive_file" "api_lambda" {
@@ -36,6 +65,46 @@ resource "aws_vpc_security_group_egress_rule" "api_all" {
   cidr_ipv4         = "0.0.0.0/0"
   description       = "Allow API outbound traffic."
   ip_protocol       = "-1"
+}
+
+resource "aws_subnet" "api_private" {
+  count = length(local.database_azs)
+
+  availability_zone = local.database_azs[count.index]
+  cidr_block        = cidrsubnet(var.database_vpc_cidr, 8, count.index + 100)
+  tags              = merge(local.tags, { Name = "${var.project_name}-api-private-${count.index + 1}" })
+  vpc_id            = aws_vpc.database.id
+}
+
+resource "aws_eip" "api_nat" {
+  domain = "vpc"
+  tags   = merge(local.tags, { Name = "${var.project_name}-api-nat" })
+}
+
+resource "aws_nat_gateway" "api" {
+  allocation_id = aws_eip.api_nat.id
+  subnet_id     = aws_subnet.database_public[0].id
+  tags          = merge(local.tags, { Name = "${var.project_name}-api" })
+
+  depends_on = [aws_internet_gateway.database]
+}
+
+resource "aws_route_table" "api_private" {
+  vpc_id = aws_vpc.database.id
+  tags   = merge(local.tags, { Name = "${var.project_name}-api-private" })
+}
+
+resource "aws_route" "api_private_nat" {
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.api.id
+  route_table_id         = aws_route_table.api_private.id
+}
+
+resource "aws_route_table_association" "api_private" {
+  count = length(aws_subnet.api_private)
+
+  route_table_id = aws_route_table.api_private.id
+  subnet_id      = aws_subnet.api_private[count.index].id
 }
 
 resource "aws_vpc_security_group_ingress_rule" "database_api_postgres" {
@@ -67,7 +136,7 @@ resource "aws_vpc_endpoint" "secretsmanager" {
   private_dns_enabled = true
   security_group_ids  = [aws_security_group.secrets_endpoint.id]
   service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
-  subnet_ids          = aws_subnet.database_public[*].id
+  subnet_ids          = aws_subnet.api_private[*].id
   tags                = local.tags
   vpc_endpoint_type   = "Interface"
   vpc_id              = aws_vpc.database.id
@@ -115,7 +184,9 @@ resource "aws_iam_role_policy" "api_lambda_secrets" {
         Effect = "Allow"
         Resource = [
           aws_db_instance.database.master_user_secret[0].secret_arn,
-          aws_secretsmanager_secret.contact_hash_secret.arn
+          aws_secretsmanager_secret.contact_hash_secret.arn,
+          aws_secretsmanager_secret.session_token_secret.arn,
+          aws_secretsmanager_secret.twilio_config.arn
         ]
       }
     ]
@@ -135,18 +206,20 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      ALLOWED_ORIGINS         = join(",", var.api_allowed_origins)
-      CONTACT_HASH_SECRET_ARN = aws_secretsmanager_secret.contact_hash_secret.arn
-      DATABASE_HOST           = aws_db_instance.database.address
-      DATABASE_NAME           = aws_db_instance.database.db_name
-      DATABASE_PORT           = tostring(aws_db_instance.database.port)
-      DATABASE_SECRET_ARN     = aws_db_instance.database.master_user_secret[0].secret_arn
+      CONTACT_HASH_SECRET_ARN   = aws_secretsmanager_secret.contact_hash_secret.arn
+      DATABASE_HOST             = aws_db_instance.database.address
+      DATABASE_NAME             = aws_db_instance.database.db_name
+      DATABASE_PORT             = tostring(aws_db_instance.database.port)
+      DATABASE_SECRET_ARN       = aws_db_instance.database.master_user_secret[0].secret_arn
+      SESSION_TOKEN_SECRET_ARN  = aws_secretsmanager_secret.session_token_secret.arn
+      SESSION_TOKEN_TTL_SECONDS = "2592000"
+      TWILIO_CONFIG_SECRET_ARN  = aws_secretsmanager_secret.twilio_config.arn
     }
   }
 
   vpc_config {
     security_group_ids = [aws_security_group.api.id]
-    subnet_ids         = aws_subnet.database_public[*].id
+    subnet_ids         = aws_subnet.api_private[*].id
   }
 }
 
@@ -164,18 +237,6 @@ resource "aws_apigatewayv2_api" "api" {
   tags = local.tags
 }
 
-resource "aws_apigatewayv2_authorizer" "api" {
-  api_id           = aws_apigatewayv2_api.api.id
-  authorizer_type  = "JWT"
-  identity_sources = ["$request.header.Authorization"]
-  name             = "${var.project_name}-cognito"
-
-  jwt_configuration {
-    audience = [aws_cognito_user_pool_client.app.id]
-    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.users.id}"
-  }
-}
-
 resource "aws_apigatewayv2_integration" "api" {
   api_id                 = aws_apigatewayv2_api.api.id
   integration_method     = "POST"
@@ -186,6 +247,8 @@ resource "aws_apigatewayv2_integration" "api" {
 
 resource "aws_apigatewayv2_route" "api" {
   for_each = toset([
+    "POST /auth/start",
+    "POST /auth/verify",
     "GET /me",
     "PUT /me",
     "POST /contacts/sync",
@@ -193,8 +256,7 @@ resource "aws_apigatewayv2_route" "api" {
   ])
 
   api_id             = aws_apigatewayv2_api.api.id
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.api.id
+  authorization_type = "NONE"
   route_key          = each.value
   target             = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
@@ -204,6 +266,11 @@ resource "aws_apigatewayv2_stage" "api" {
   auto_deploy = true
   name        = "$default"
   tags        = local.tags
+
+  default_route_settings {
+    throttling_burst_limit = 20
+    throttling_rate_limit  = 5
+  }
 }
 
 resource "aws_lambda_permission" "api_gateway" {

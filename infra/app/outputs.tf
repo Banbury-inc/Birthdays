@@ -52,13 +52,3 @@ output "api_url" {
   description = "Base URL for the protected Birthdays API."
   value       = aws_apigatewayv2_api.api.api_endpoint
 }
-
-output "cognito_user_pool_id" {
-  description = "Cognito User Pool ID for phone-number login."
-  value       = aws_cognito_user_pool.users.id
-}
-
-output "cognito_user_pool_client_id" {
-  description = "Cognito User Pool client ID for the app."
-  value       = aws_cognito_user_pool_client.app.id
-}

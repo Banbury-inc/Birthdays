@@ -112,6 +112,39 @@ variable "lambda_pg_layer_arn" {
   default     = ""
 }
 
+variable "twilio_account_sid" {
+  description = "Twilio Account SID used by the API Lambda for Verify requests."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(trim(var.twilio_account_sid)) > 0
+    error_message = "twilio_account_sid is required."
+  }
+}
+
+variable "twilio_auth_token" {
+  description = "Twilio Auth Token used by the API Lambda for Verify requests."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(trim(var.twilio_auth_token)) > 0
+    error_message = "twilio_auth_token is required."
+  }
+}
+
+variable "twilio_verify_service_sid" {
+  description = "Twilio Verify Service SID for phone login codes."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(trim(var.twilio_verify_service_sid)) > 0
+    error_message = "twilio_verify_service_sid is required."
+  }
+}
+
 variable "tags" {
   description = "Tags to apply to application resources."
   type        = map(string)

@@ -1,13 +1,4 @@
-import {
-  autoSignIn,
-  confirmSignIn,
-  confirmSignUp,
-  getCurrentUser,
-  signIn,
-  signOut,
-  signUp,
-} from "@aws-amplify/auth"
-import { Amplify, fetchAuthSession } from "@aws-amplify/core"
+import { Preferences } from "@capacitor/preferences"
 
 import { appConfig, isAuthConfigured } from "@/config/app-config"
 
@@ -16,221 +7,138 @@ interface AuthenticatedUser {
   phoneNumber: string
 }
 
-interface CognitoErrorLike {
-  code?: string
-  message?: string
-  name?: string
-  __type?: string
+interface AuthSessionPayload {
+  exp: number
+  phoneNumber: string
+  sub: string
 }
 
-type PendingAuthFlow = "sign-in" | "sign-up" | null
-
-let isAmplifyConfigured = false
 let pendingPhoneNumber = ""
-let pendingAuthFlow: PendingAuthFlow = null
-
-function clearPendingAuthFlow() {
-  pendingPhoneNumber = ""
-  pendingAuthFlow = null
-}
-
-function configureAmplify() {
-  if (isAmplifyConfigured || !isAuthConfigured()) return
-
-  Amplify.configure({
-    Auth: {
-      Cognito: {
-        userPoolId: appConfig.cognitoUserPoolId,
-        userPoolClientId: appConfig.cognitoUserPoolClientId,
-        loginWith: {
-          phone: true,
-        },
-      },
-    },
-  })
-
-  isAmplifyConfigured = true
-}
-
-function getCognitoError(error: unknown): CognitoErrorLike {
-  if (typeof error !== "object" || error === null) return {}
-
-  return error as CognitoErrorLike
-}
-
-function getCognitoErrorText(error: unknown) {
-  const cognitoError = getCognitoError(error)
-
-  return [
-    cognitoError.name,
-    cognitoError.code,
-    cognitoError.__type,
-    cognitoError.message,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-}
-
-function isUserNotFoundError(error: unknown) {
-  const errorText = getCognitoErrorText(error)
-
-  return (
-    errorText.includes("usernotfoundexception") ||
-    errorText.includes("user does not exist")
-  )
-}
-
-function toPhoneAuthError(error: unknown) {
-  const errorText = getCognitoErrorText(error)
-
-  if (errorText.includes("codemismatchexception")) {
-    return new Error("That code is not correct. Check the text and try again.")
-  }
-
-  if (errorText.includes("expiredcodeexception")) {
-    return new Error("That code expired. Request a new login code.")
-  }
-
-  if (
-    errorText.includes("limitexceededexception") ||
-    errorText.includes("toomanyrequestsexception") ||
-    errorText.includes("too many")
-  ) {
-    return new Error("Too many attempts. Wait a few minutes and try again.")
-  }
-
-  if (
-    errorText.includes("sms") ||
-    errorText.includes("sns") ||
-    errorText.includes("phone")
-  ) {
-    return new Error(
-      "We could not send a text to that number. Check the number and AWS SMS settings, then try again."
-    )
-  }
-
-  if (error instanceof Error) return error
-
-  return new Error("Phone authorization failed. Try again.")
-}
+const authTokenStorageKey = "birthdays.authToken"
 
 function assertAuthConfigured() {
   if (isAuthConfigured()) return
 
   throw new Error(
-    "Phone login is not configured. Set VITE_COGNITO_USER_POOL_ID and VITE_COGNITO_USER_POOL_CLIENT_ID."
+    "Phone login is not configured. Set VITE_API_BASE_URL."
   )
 }
 
-export async function startPhoneSignIn(phoneNumber: string) {
-  assertAuthConfigured()
-  configureAmplify()
+function decodeBase64Url(value: string) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/")
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4)
 
-  pendingPhoneNumber = phoneNumber
-  pendingAuthFlow = null
-
-  try {
-    await signIn({
-      username: phoneNumber,
-      options: {
-        authFlowType: "USER_AUTH",
-        preferredChallenge: "SMS_OTP",
-      },
-    })
-    pendingAuthFlow = "sign-in"
-  } catch (error) {
-    if (!isUserNotFoundError(error)) throw toPhoneAuthError(error)
-
-    try {
-      await signUp({
-        username: phoneNumber,
-        options: {
-          autoSignIn: {
-            authFlowType: "USER_AUTH",
-            preferredChallenge: "SMS_OTP",
-          },
-          userAttributes: {
-            phone_number: phoneNumber,
-          },
-        },
-      })
-      pendingAuthFlow = "sign-up"
-    } catch (signUpError) {
-      throw toPhoneAuthError(signUpError)
-    }
-  }
+  return atob(`${base64}${padding}`)
 }
 
-export async function confirmPhoneSignIn(code: string) {
-  assertAuthConfigured()
-  configureAmplify()
+function decodeSessionPayload(token: string): AuthSessionPayload | null {
+  const [payload] = token.split(".")
 
-  const confirmationCode = code.trim()
-
-  if (!confirmationCode) throw new Error("Enter the code from your text.")
-  if (!pendingPhoneNumber || !pendingAuthFlow) {
-    throw new Error("Request a new login code before confirming.")
-  }
+  if (!payload) return null
 
   try {
-    if (pendingAuthFlow === "sign-up") {
-      await confirmSignUp({
-        confirmationCode,
-        username: pendingPhoneNumber,
-      })
-      clearPendingAuthFlow()
-
-      const signInResult = await autoSignIn()
-
-      if (!signInResult.isSignedIn) {
-        throw new Error(
-          "Sign-in was not completed after registration. Request a new login code and try again."
-        )
-      }
-      return
-    }
-
-    await confirmSignIn({
-      challengeResponse: confirmationCode,
-    })
-    clearPendingAuthFlow()
-  } catch (error) {
-    throw toPhoneAuthError(error)
-  }
-}
-
-export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> {
-  configureAmplify()
-
-  if (!isAuthConfigured()) return null
-
-  try {
-    const user = await getCurrentUser()
-
-    return {
-      userId: user.userId,
-      phoneNumber: user.signInDetails?.loginId ?? "",
-    }
+    return JSON.parse(decodeBase64Url(payload)) as AuthSessionPayload
   } catch {
     return null
   }
 }
 
+function isSessionExpired(payload: AuthSessionPayload) {
+  return payload.exp * 1000 <= Date.now()
+}
+
+async function getStoredToken() {
+  const result = await Preferences.get({ key: authTokenStorageKey })
+
+  return result.value ?? ""
+}
+
+async function storeToken(token: string) {
+  await Preferences.set({
+    key: authTokenStorageKey,
+    value: token,
+  })
+}
+
+async function clearToken() {
+  await Preferences.remove({ key: authTokenStorageKey })
+}
+
+async function requestAuth<T>(path: string, body: unknown) {
+  assertAuthConfigured()
+
+  const response = await fetch(`${appConfig.apiBaseUrl}${path}`, {
+    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  })
+
+  if (response.ok) return (await response.json()) as T
+
+  const errorBody = (await response.json().catch(() => null)) as {
+    message?: string
+  } | null
+
+  throw new Error(errorBody?.message ?? "Phone authorization failed. Try again.")
+}
+
+export async function startPhoneSignIn(phoneNumber: string) {
+  await requestAuth<{ status: string }>("/auth/start", {
+    phoneNumber,
+  })
+  pendingPhoneNumber = phoneNumber
+}
+
+export async function confirmPhoneSignIn(code: string) {
+  const confirmationCode = code.trim()
+
+  if (!confirmationCode) throw new Error("Enter the code from your text.")
+  if (!pendingPhoneNumber) {
+    throw new Error("Request a new login code before confirming.")
+  }
+
+  const result = await requestAuth<{ token: string }>("/auth/verify", {
+    code: confirmationCode,
+    phoneNumber: pendingPhoneNumber,
+  })
+
+  await storeToken(result.token)
+  pendingPhoneNumber = ""
+}
+
+export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> {
+  const token = await getStoredToken()
+
+  if (!token) return null
+
+  const payload = decodeSessionPayload(token)
+
+  if (!payload || isSessionExpired(payload)) {
+    await clearToken()
+    return null
+  }
+
+  return {
+    phoneNumber: payload.phoneNumber,
+    userId: payload.sub,
+  }
+}
+
 export async function getAuthorizationToken() {
-  configureAmplify()
+  const token = await getStoredToken()
+  const payload = decodeSessionPayload(token)
 
-  if (!isAuthConfigured()) return ""
+  if (!token || !payload || isSessionExpired(payload)) {
+    await clearToken()
+    return ""
+  }
 
-  const session = await fetchAuthSession()
-
-  return session.tokens?.idToken?.toString() ?? ""
+  return token
 }
 
 export async function signOutUser() {
-  configureAmplify()
-
-  if (!isAuthConfigured()) return
-
-  await signOut()
+  pendingPhoneNumber = ""
+  await clearToken()
 }
