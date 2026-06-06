@@ -439,9 +439,10 @@ exports.handler = async function handler(event) {
 
   if (!claims) return json(401, { message: "Unauthorized." })
 
-  const client = await (await getPool()).connect()
+  let client
 
   try {
+    client = await (await getPool()).connect()
     await ensureAuthSchema(client)
 
     if (route === "GET /me") return json(200, await getCurrentUser(client, claims))
@@ -460,6 +461,6 @@ exports.handler = async function handler(event) {
       message: error instanceof Error ? error.message : "Request failed.",
     })
   } finally {
-    client.release()
+    client?.release()
   }
 }

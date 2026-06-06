@@ -211,6 +211,7 @@ resource "aws_lambda_function" "api" {
       DATABASE_NAME             = aws_db_instance.database.db_name
       DATABASE_PORT             = tostring(aws_db_instance.database.port)
       DATABASE_SECRET_ARN       = aws_db_instance.database.master_user_secret[0].secret_arn
+      NODE_EXTRA_CA_CERTS       = "/var/runtime/ca-cert.pem"
       SESSION_TOKEN_SECRET_ARN  = aws_secretsmanager_secret.session_token_secret.arn
       SESSION_TOKEN_TTL_SECONDS = "2592000"
       TWILIO_CONFIG_SECRET_ARN  = aws_secretsmanager_secret.twilio_config.arn
