@@ -3,6 +3,7 @@
   "private": true,
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.938.0",
     "pg": "^8.21.0"
   }
 }
