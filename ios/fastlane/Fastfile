@@ -110,32 +110,60 @@ end
 
 def sync_signing(api_key)
   team_id = require_env("APPLE_TEAM_ID")
+  target_name = SCHEME
+
+  if env_value("MATCH_GIT_URL")
+    match_options = {
+      api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
+      git_url: require_env("MATCH_GIT_URL"),
+      git_branch: env_value("MATCH_GIT_BRANCH", "main"),
+      readonly: is_ci,
+      type: "appstore"
+    }
+
+    git_basic_authorization = env_value("MATCH_GIT_BASIC_AUTHORIZATION")
+    match_options[:git_basic_authorization] = git_basic_authorization unless git_basic_authorization.nil?
+
+    match(**match_options)
+
+    mapping = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING]
+    UI.user_error!("fastlane match did not set MATCH_PROVISIONING_PROFILE_MAPPING") if mapping.nil? || mapping.empty?
+
+    profile_name = mapping[APP_IDENTIFIER] || mapping.values.first
+    UI.user_error!("fastlane match mapping is missing #{APP_IDENTIFIER}") if profile_name.to_s.strip.empty?
+
+    update_code_signing_settings(
+      path: XCODEPROJ,
+      use_automatic_signing: false,
+      team_id: team_id,
+      targets: [target_name],
+      code_sign_identity: "Apple Distribution",
+      profile_name: profile_name
+    )
+
+    return mapping
+  end
+
+  specifier = env_value("IOS_PROVISIONING_PROFILE_SPECIFIER")
+  if specifier.to_s.strip.empty?
+    UI.user_error!(
+      "Set IOS_PROVISIONING_PROFILE_SPECIFIER to the App Store provisioning profile name (Xcode Signing & Capabilities) " \
+      "when MATCH_GIT_URL is not set, or configure MATCH_GIT_URL for fastlane match."
+    )
+  end
 
   update_code_signing_settings(
     path: XCODEPROJ,
     use_automatic_signing: false,
     team_id: team_id,
-    targets: [SCHEME]
+    targets: [target_name],
+    code_sign_identity: "Apple Distribution",
+    profile_name: specifier
   )
 
-  if env_value("MATCH_GIT_URL").nil?
-    UI.important("MATCH_GIT_URL is not set; using signing assets already installed on the runner.")
-    return
-  end
-
-  match_options = {
-    api_key: api_key,
-    app_identifier: APP_IDENTIFIER,
-    git_url: require_env("MATCH_GIT_URL"),
-    git_branch: env_value("MATCH_GIT_BRANCH", "main"),
-    readonly: is_ci,
-    type: "appstore"
-  }
-
-  git_basic_authorization = env_value("MATCH_GIT_BASIC_AUTHORIZATION")
-  match_options[:git_basic_authorization] = git_basic_authorization unless git_basic_authorization.nil?
-
-  match(**match_options)
+  UI.important("MATCH_GIT_URL is not set; using manual provisioning profile '#{specifier}'.")
+  { APP_IDENTIFIER => specifier }
 end
 
 def next_build_number(api_key, version)
@@ -161,7 +189,7 @@ platform :ios do
     version = env_value("APP_VERSION", package_version)
 
     ensure_app_store_record!(version)
-    sync_signing(api_key)
+    export_provisioning_profiles = sync_signing(api_key)
 
     increment_version_number(
       version_number: version,
@@ -184,7 +212,8 @@ platform :ios do
       export_options: {
         method: "app-store",
         signingStyle: "manual",
-        teamID: require_env("APPLE_TEAM_ID")
+        teamID: require_env("APPLE_TEAM_ID"),
+        provisioningProfiles: export_provisioning_profiles
       }
     )
 

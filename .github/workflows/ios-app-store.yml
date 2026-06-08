@@ -46,6 +46,7 @@ jobs:
       MATCH_GIT_BRANCH: ${{ vars.MATCH_GIT_BRANCH || 'main' }}
       MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_SPECIFIER: ${{ vars.IOS_PROVISIONING_PROFILE_SPECIFIER }}
       VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
       VITE_DEFAULT_COUNTRY: ${{ vars.VITE_DEFAULT_COUNTRY || 'US' }}
 
@@ -87,6 +88,10 @@ jobs:
 
           if [ -z "$APP_REVIEW_EMAIL" ]; then
             missing+=("APP_REVIEW_EMAIL secret")
+          fi
+
+          if [ -z "$MATCH_GIT_URL" ] && [ -z "$IOS_PROVISIONING_PROFILE_SPECIFIER" ]; then
+            missing+=("IOS_PROVISIONING_PROFILE_SPECIFIER repository variable (profile name) or MATCH_GIT_URL for fastlane match")
           fi
 
           if [ "${#missing[@]}" -gt 0 ]; then
@@ -137,7 +142,18 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/"
+          TMP_PLIST=$(mktemp)
+          security cms -D -i "$PROFILE_PATH" >"$TMP_PLIST" 2>/dev/null || {
+            echo "Failed to decode provisioning profile (security cms)."
+            exit 1
+          }
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" "$TMP_PLIST" 2>/dev/null || true)
+          rm -f "$TMP_PLIST"
+          if [ -z "$PROFILE_UUID" ]; then
+            echo "Could not read UUID from provisioning profile."
+            exit 1
+          fi
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
 
       - name: Build, upload, and submit for review
         working-directory: ios

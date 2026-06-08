@@ -53,7 +53,9 @@ MATCH_PASSWORD=
 MATCH_GIT_BASIC_AUTHORIZATION=
 ```
 
-If `MATCH_GIT_URL` is not set, the workflow expects the runner to have signing assets installed. The provided workflow can install a base64-encoded `.p12` distribution certificate and `.mobileprovision` profile from GitHub secrets.
+If `MATCH_GIT_URL` is not set, the lane uses **manual** signing. You must set **`IOS_PROVISIONING_PROFILE_SPECIFIER`** to the App Store profile’s **name** (the string Xcode shows for the provisioning profile, not the UUID). The GitHub workflow can install a base64-encoded `.p12` and `.mobileprovision` from secrets; the profile is copied into `~/Library/MobileDevice/Provisioning Profiles/` using its UUID filename so Xcode can resolve it.
+
+The lane sets the `App` target to **Apple Distribution**, manual signing, that profile, and passes the same mapping to `gym`’s `export_options.provisioningProfiles` for the archive/export step.
 
 ## Metadata
 

@@ -99,7 +99,7 @@ MATCH_PASSWORD=
 MATCH_GIT_BASIC_AUTHORIZATION=
 ```
 
-Or provide manual signing assets:
+Or provide manual signing assets (no match repo):
 
 ```bash
 IOS_DISTRIBUTION_CERTIFICATE_BASE64=
@@ -107,6 +107,8 @@ IOS_DISTRIBUTION_CERTIFICATE_PASSWORD=
 IOS_PROVISIONING_PROFILE_BASE64=
 IOS_KEYCHAIN_PASSWORD=
 ```
+
+When using manual profiles, set **`IOS_PROVISIONING_PROFILE_SPECIFIER`** to the **exact provisioning profile name** shown in Xcode (Signing & Capabilities) or the Apple Developer portal (must match the embedded name in the `.mobileprovision`).
 
 Set these repository variables:
 
@@ -117,9 +119,10 @@ APP_STORE_APPLE_ID=
 VITE_API_BASE_URL=
 VITE_DEFAULT_COUNTRY=US
 MATCH_GIT_URL=
+IOS_PROVISIONING_PROFILE_SPECIFIER=
 ```
 
-Optional variables include `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
+Optional variables include `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, `IOS_PROVISIONING_PROFILE_SPECIFIER` (required when `MATCH_GIT_URL` is unset), and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
 
 First-time App Store submissions still require complete App Store Connect setup, including app privacy answers, age rating verification, pricing/availability, screenshots, support URL, and privacy policy URL. See `ios/fastlane/README.md` for the release lane details.
 
