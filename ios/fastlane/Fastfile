@@ -1,5 +1,8 @@
 require "json"
 
+require_relative "birthdays_spaceship_post_app_platform_fix"
+BirthdaysSpaceshipPostAppPlatformFix.apply!
+
 default_platform(:ios)
 
 APP_IDENTIFIER = "com.banbury.birthdays"
