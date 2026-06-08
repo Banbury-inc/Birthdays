@@ -92,15 +92,7 @@ APP_STORE_CONNECT_API_KEY_ISSUER_ID=
 APP_STORE_CONNECT_API_KEY_KEY_ID=
 ```
 
-For signing, use Fastlane match:
-
-```bash
-MATCH_PASSWORD=
-```
-
-GitHub Actions defaults `MATCH_GIT_URL` to this repository and sets Match HTTPS auth from `GITHUB_TOKEN`; use optional secret `MATCH_GIT_BASIC_AUTHORIZATION` (Base64 `x-access-token:PAT`) only if certs live in another private repo. The first Match setup run must be started manually with the `initialize_signing` workflow input enabled so Fastlane can create and commit encrypted signing assets. See `ios/fastlane/README.md`.
-
-Or provide manual signing assets (no match repo):
+For signing, provide manual signing assets (no match repo):
 
 ```bash
 IOS_DISTRIBUTION_CERTIFICATE_BASE64=
@@ -110,6 +102,8 @@ IOS_KEYCHAIN_PASSWORD=
 ```
 
 When using manual profiles, set **`IOS_PROVISIONING_PROFILE_SPECIFIER`** to the **exact provisioning profile name** shown in Xcode (Signing & Capabilities) or the Apple Developer portal (must match the embedded name in the `.mobileprovision`).
+
+Do not set `MATCH_GIT_URL` when using manual signing. If `MATCH_GIT_URL` is set, the workflow uses Fastlane match instead.
 
 Set these repository variables:
 
@@ -122,7 +116,7 @@ VITE_DEFAULT_COUNTRY=US
 IOS_PROVISIONING_PROFILE_SPECIFIER=
 ```
 
-Optional variables include `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, `MATCH_GIT_URL` (only when using a different signing repo), `IOS_PROVISIONING_PROFILE_SPECIFIER` (required for manual signing), and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
+Optional variables include `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, `MATCH_GIT_URL` (only when using Fastlane match), and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
 
 First-time App Store submissions still require complete App Store Connect setup, including app privacy answers, age rating verification, pricing/availability, screenshots, support URL, and privacy policy URL. See `ios/fastlane/README.md` for the release lane details.
 

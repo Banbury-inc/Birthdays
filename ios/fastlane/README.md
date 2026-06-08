@@ -44,15 +44,26 @@ Fastlane can find existing apps with App Store Connect API-key auth. First-time 
 
 ## Signing
 
-Preferred signing uses Fastlane match:
+GitHub Actions signing uses manual signing assets by default. Do not set `MATCH_GIT_URL` for this path. You must set:
 
 ```bash
-MATCH_GIT_URL= # optional in GitHub Actions; defaults to this repository
+IOS_DISTRIBUTION_CERTIFICATE_BASE64=
+IOS_DISTRIBUTION_CERTIFICATE_PASSWORD=
+IOS_PROVISIONING_PROFILE_BASE64=
+IOS_PROVISIONING_PROFILE_SPECIFIER=
+```
+
+`IOS_KEYCHAIN_PASSWORD` is optional; the workflow uses a temporary fallback if it is unset.
+
+The lane sets the `App` target to **Apple Distribution**, manual signing, that profile, and passes the same mapping to `gym`’s `export_options.provisioningProfiles` for the archive/export step.
+
+Fastlane match is still available if `MATCH_GIT_URL` is explicitly configured:
+
+```bash
+MATCH_GIT_URL=
 MATCH_GIT_BRANCH=main
 MATCH_PASSWORD=
 ```
-
-**GitHub Actions:** `.github/workflows/ios-app-store.yml` defaults `MATCH_GIT_URL` to the current repository and sets `MATCH_GIT_BASIC_AUTHORIZATION` from `GITHUB_TOKEN` (`contents: read`). You do **not** need a PAT for that layout.
 
 The first Match run must create and commit encrypted certificates/profiles. Trigger **iOS App Store Release** manually from GitHub Actions and enable `initialize_signing` once. That run sets `MATCH_READONLY=false`; normal push releases keep `MATCH_READONLY=true` and only read existing signing assets.
 
@@ -65,10 +76,6 @@ printf '%s' 'x-access-token:YOUR_GITHUB_PAT' | base64
 Paste the single-line Base64 output into the secret; the workflow uses it instead of `GITHUB_TOKEN`.
 
 For local runs or other CI, set `MATCH_GIT_BASIC_AUTHORIZATION` yourself when using a private HTTPS match repo.
-
-If `MATCH_GIT_URL` is not set, the lane uses **manual** signing. You must set **`IOS_PROVISIONING_PROFILE_SPECIFIER`** to the App Store profile’s **name** (the string Xcode shows for the provisioning profile, not the UUID). The GitHub workflow can install a base64-encoded `.p12` and `.mobileprovision` from secrets; the profile is copied into `~/Library/MobileDevice/Provisioning Profiles/` using its UUID filename so Xcode can resolve it.
-
-The lane sets the `App` target to **Apple Distribution**, manual signing, that profile, and passes the same mapping to `gym`’s `export_options.provisioningProfiles` for the archive/export step.
 
 ## Metadata
 

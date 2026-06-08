@@ -42,3 +42,5 @@ backend.hcl
 
 # Apple Auth Keys
 AuthKey_*.p8
+*.p12
+*.mobileprovision
