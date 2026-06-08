@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
     scheme: "Birthdays",
   },
   plugins: {
-    Contacts: {
+    CapacitorContacts: {
       iosUsageDescription:
         "Birthdays uses your contacts to find friends who also use the app.",
     },

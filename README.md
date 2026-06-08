@@ -5,7 +5,7 @@ An iPhone-first birthday reminder app starter built with React, TypeScript, Vite
 ## What is included
 
 - Mobile-first app shell sized for an iPhone viewport
-- Capacitor configuration for an iPhone app shell with Contacts permission copy
+- Capacitor 8 iOS shell with `@capgo/capacitor-contacts` (Swift PM aligned with core) and Contacts usage copy
 - Twilio Verify phone-number sign-in through the protected API infrastructure
 - PostgreSQL migration for phone-number profiles and contact matching
 - shadcn/ui configured with the Nova preset and Radix primitives

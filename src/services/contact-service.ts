@@ -1,51 +1,36 @@
 import { Capacitor } from "@capacitor/core"
-import { Contacts } from "@capacitor-community/contacts"
+import { CapacitorContacts } from "@capgo/capacitor-contacts"
 
 import { appConfig } from "@/config/app-config"
 import type { ContactUpload } from "@/services/api-service"
 import { normalizePhoneNumber } from "@/lib/phone"
 
-interface DeviceContactPhone {
-  number: string | null
-}
-
-interface DeviceContact {
-  name?: {
-    display: string | null
-  }
-  phones?: DeviceContactPhone[]
-}
-
-function getContactDisplayName(contact: DeviceContact) {
-  return contact.name?.display?.trim() || "Contact"
-}
-
 export async function importDeviceContacts(): Promise<ContactUpload[]> {
   if (!Capacitor.isNativePlatform()) return []
 
-  const permission = await Contacts.requestPermissions()
+  const permission = await CapacitorContacts.requestPermissions({
+    permissions: ["readContacts"],
+  })
 
-  if (permission.contacts !== "granted" && permission.contacts !== "limited") {
+  const readState = permission.readContacts
+  if (readState !== "granted" && readState !== "limited") {
     throw new Error("Contacts permission is required to find friends.")
   }
 
-  const result = await Contacts.getContacts({
-    projection: {
-      name: true,
-      phones: true,
-    },
+  const result = await CapacitorContacts.getContacts({
+    fields: ["fullName", "phoneNumbers"],
   })
 
   const contactsByPhoneNumber = new Map<string, ContactUpload>()
 
   for (const contact of result.contacts) {
-    const displayName = getContactDisplayName(contact)
+    const displayName = contact.fullName?.trim() || "Contact"
 
-    for (const phone of contact.phones ?? []) {
-      if (!phone.number) continue
+    for (const phone of contact.phoneNumbers ?? []) {
+      if (!phone.value) continue
 
       const normalizedPhone = normalizePhoneNumber(
-        phone.number,
+        phone.value,
         appConfig.defaultCountry
       )
 
