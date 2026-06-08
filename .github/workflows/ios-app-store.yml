@@ -132,22 +132,15 @@ jobs:
           fi
 
           chmod 600 "$KEY_FILE"
+          printf 'API_PRIVATE_KEYS_DIR=%s\n' "$KEY_DIR" >> "$GITHUB_ENV"
           echo "Installed App Store Connect API key for Apple upload tools."
-
-          FASTLANE_KEY_FILE="$RUNNER_TEMP/fastlane_app_store_connect_key.pem"
-          if ! openssl ec -in "$KEY_FILE" -out "$FASTLANE_KEY_FILE" >/dev/null 2>&1; then
-            echo "Could not convert App Store Connect API key for fastlane."
-            rm -f "$KEY_FILE" "$FASTLANE_KEY_FILE"
-            exit 1
-          fi
 
           {
             echo "APP_STORE_CONNECT_API_KEY_BASE64="
             echo "APP_STORE_CONNECT_API_KEY_KEY<<EOF"
-            cat "$FASTLANE_KEY_FILE"
+            cat "$KEY_FILE"
             echo "EOF"
           } >> "$GITHUB_ENV"
-          rm -f "$FASTLANE_KEY_FILE"
 
       - name: Install dependencies
         run: npm ci
