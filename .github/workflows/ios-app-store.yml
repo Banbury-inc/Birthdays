@@ -159,11 +159,16 @@ jobs:
       - name: Configure Match git HTTPS auth
         if: ${{ vars.MATCH_GIT_URL != '' }}
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           MATCH_AUTH_OVERRIDE: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
         run: |
           if [ -n "$MATCH_AUTH_OVERRIDE" ]; then
             printf 'MATCH_GIT_BASIC_AUTHORIZATION=%s\n' "$MATCH_AUTH_OVERRIDE" >> "$GITHUB_ENV"
           else
+            if [ -z "$GITHUB_TOKEN" ]; then
+              echo "GITHUB_TOKEN is unavailable; cannot authenticate fastlane match git clone."
+              exit 1
+            fi
             encoded="$(printf '%s' "x-access-token:${GITHUB_TOKEN}" | base64 | tr -d '\n')"
             printf 'MATCH_GIT_BASIC_AUTHORIZATION=%s\n' "$encoded" >> "$GITHUB_ENV"
           fi
