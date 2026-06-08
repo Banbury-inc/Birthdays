@@ -22,7 +22,6 @@ npm run cap:sync
 npm run ios
 ```
 
-
 ## Environment
 
 Copy `.env.example` to `.env.local` and fill the values from Terraform outputs:
