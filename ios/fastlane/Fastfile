@@ -16,7 +16,7 @@ OUTPUT_DIR = File.join(IOS_ROOT, "output")
 IPA_PATH = File.join(OUTPUT_DIR, "#{APP_NAME}.ipa")
 METADATA_PATH = File.join(FASTLANE_ROOT, "metadata")
 SCREENSHOTS_PATH = File.join(FASTLANE_ROOT, "screenshots")
-APP_RATING_CONFIG_PATH = File.join(FASTLANE_ROOT, "metadata", "app_store_rating_config.json")
+APP_RATING_CONFIG_PATH = File.join(IOS_ROOT, "metadata", "app_store_rating_config.json")
 
 def env_value(name, fallback = nil)
   value = ENV[name]
