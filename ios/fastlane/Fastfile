@@ -65,17 +65,6 @@ def package_version
 end
 
 def app_store_api_key
-  key_path = env_value("APP_STORE_CONNECT_API_KEY_PATH")
-  if key_path
-    return app_store_connect_api_key(
-      key_id: require_env_any(["APP_STORE_CONNECT_KEY_ID", "APP_STORE_CONNECT_API_KEY_KEY_ID"]),
-      issuer_id: require_env_any(["APP_STORE_CONNECT_ISSUER_ID", "APP_STORE_CONNECT_API_KEY_ISSUER_ID"]),
-      key_filepath: key_path,
-      duration: 1200,
-      in_house: false
-    )
-  end
-
   key_content_base64 = env_value("APP_STORE_CONNECT_API_KEY_BASE64")
   key_content = key_content_base64 || require_env_any(["APP_STORE_CONNECT_API_KEY_KEY", "APP_STORE_CONNECT_KEY_CONTENT"])
 

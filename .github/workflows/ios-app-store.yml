@@ -111,7 +111,9 @@ jobs:
           fi
 
           KEY_ID="${APP_STORE_CONNECT_KEY_ID:-$APP_STORE_CONNECT_API_KEY_KEY_ID}"
-          KEY_FILE="$RUNNER_TEMP/AuthKey_${KEY_ID}.p8"
+          KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          KEY_FILE="$KEY_DIR/AuthKey_${KEY_ID}.p8"
+          mkdir -p "$KEY_DIR"
           if [ -n "$APP_STORE_CONNECT_API_KEY_BASE64" ]; then
             if ! printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$KEY_FILE"; then
               echo "APP_STORE_CONNECT_API_KEY_BASE64 is not valid base64."
@@ -130,7 +132,7 @@ jobs:
           fi
 
           chmod 600 "$KEY_FILE"
-          printf 'APP_STORE_CONNECT_API_KEY_PATH=%s\n' "$KEY_FILE" >> "$GITHUB_ENV"
+          echo "Installed App Store Connect API key for Apple upload tools."
 
       - name: Install dependencies
         run: npm ci
