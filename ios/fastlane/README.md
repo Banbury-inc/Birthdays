@@ -50,8 +50,19 @@ Preferred signing uses Fastlane match:
 MATCH_GIT_URL=
 MATCH_GIT_BRANCH=main
 MATCH_PASSWORD=
-MATCH_GIT_BASIC_AUTHORIZATION=
 ```
+
+**GitHub Actions:** When `MATCH_GIT_URL` is set, `.github/workflows/ios-app-store.yml` sets `MATCH_GIT_BASIC_AUTHORIZATION` from `GITHUB_TOKEN` (same repository as the workflow, `contents: read`). You do **not** need a PAT for that layout.
+
+If your signing git repo is **another** private GitHub repository, add a repository secret `MATCH_GIT_BASIC_AUTHORIZATION` whose value is the Base64 encoding of `x-access-token:` plus a PAT that can read that repo:
+
+```bash
+printf '%s' 'x-access-token:YOUR_GITHUB_PAT' | base64
+```
+
+Paste the single-line Base64 output into the secret; the workflow uses it instead of `GITHUB_TOKEN`.
+
+For local runs or other CI, set `MATCH_GIT_BASIC_AUTHORIZATION` yourself when using a private HTTPS match repo.
 
 If `MATCH_GIT_URL` is not set, the lane uses **manual** signing. You must set **`IOS_PROVISIONING_PROFILE_SPECIFIER`** to the App Store profile’s **name** (the string Xcode shows for the provisioning profile, not the UUID). The GitHub workflow can install a base64-encoded `.p12` and `.mobileprovision` from secrets; the profile is copied into `~/Library/MobileDevice/Provisioning Profiles/` using its UUID filename so Xcode can resolve it.
 

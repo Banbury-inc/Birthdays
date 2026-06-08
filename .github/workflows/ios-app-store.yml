@@ -42,7 +42,6 @@ jobs:
       APP_STORE_SKU: ${{ vars.APP_STORE_SKU || 'birthdays-ios' }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       FASTLANE_SKIP_SCREENSHOTS: ${{ vars.FASTLANE_SKIP_SCREENSHOTS || 'true' }}
-      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
       MATCH_GIT_BRANCH: ${{ vars.MATCH_GIT_BRANCH || 'main' }}
       MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
@@ -154,6 +153,20 @@ jobs:
             exit 1
           fi
           cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
+
+      # Match clones MATCH_GIT_URL over HTTPS. Same-repo workflows can use GITHUB_TOKEN (no PAT).
+      # Set secret MATCH_GIT_BASIC_AUTHORIZATION only when the certs repo is another private repo.
+      - name: Configure Match git HTTPS auth
+        if: ${{ vars.MATCH_GIT_URL != '' }}
+        env:
+          MATCH_AUTH_OVERRIDE: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+        run: |
+          if [ -n "$MATCH_AUTH_OVERRIDE" ]; then
+            printf 'MATCH_GIT_BASIC_AUTHORIZATION=%s\n' "$MATCH_AUTH_OVERRIDE" >> "$GITHUB_ENV"
+          else
+            encoded="$(printf '%s' "x-access-token:${GITHUB_TOKEN}" | base64 | tr -d '\n')"
+            printf 'MATCH_GIT_BASIC_AUTHORIZATION=%s\n' "$encoded" >> "$GITHUB_ENV"
+          fi
 
       - name: Build, upload, and submit for review
         working-directory: ios

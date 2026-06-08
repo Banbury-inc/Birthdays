@@ -96,8 +96,9 @@ For signing, use Fastlane match:
 
 ```bash
 MATCH_PASSWORD=
-MATCH_GIT_BASIC_AUTHORIZATION=
 ```
+
+GitHub Actions sets Match HTTPS auth from `GITHUB_TOKEN` when `MATCH_GIT_URL` points at this repo; use optional secret `MATCH_GIT_BASIC_AUTHORIZATION` (Base64 `x-access-token:PAT`) only if certs live in another private repo. See `ios/fastlane/README.md`.
 
 Or provide manual signing assets (no match repo):
 

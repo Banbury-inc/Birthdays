@@ -113,6 +113,16 @@ def sync_signing(api_key)
   target_name = SCHEME
 
   if env_value("MATCH_GIT_URL")
+    # match reads MATCH_GIT_BASIC_AUTHORIZATION from the process environment. CI often
+    # sets it from a GitHub secret that resolves to "" when unset, which becomes an
+    # invalid "Authorization: Basic " header and breaks git clone.
+    git_basic_authorization = env_value("MATCH_GIT_BASIC_AUTHORIZATION")
+    if git_basic_authorization.nil?
+      ENV.delete("MATCH_GIT_BASIC_AUTHORIZATION")
+    else
+      ENV["MATCH_GIT_BASIC_AUTHORIZATION"] = git_basic_authorization
+    end
+
     match_options = {
       api_key: api_key,
       app_identifier: APP_IDENTIFIER,
@@ -122,7 +132,6 @@ def sync_signing(api_key)
       type: "appstore"
     }
 
-    git_basic_authorization = env_value("MATCH_GIT_BASIC_AUTHORIZATION")
     match_options[:git_basic_authorization] = git_basic_authorization unless git_basic_authorization.nil?
 
     match(**match_options)
