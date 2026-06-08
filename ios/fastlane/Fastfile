@@ -258,7 +258,7 @@ platform :ios do
       app_review_information: compact_hash({
         first_name: env_value("APP_REVIEW_FIRST_NAME", "Banbury"),
         last_name: env_value("APP_REVIEW_LAST_NAME", "Team"),
-        phone_number: env_value("APP_REVIEW_PHONE_NUMBER"),
+        phone_number: require_env("APP_REVIEW_PHONE_NUMBER"),
         email_address: require_env("APP_REVIEW_EMAIL"),
         demo_user: env_value("APP_REVIEW_DEMO_USER"),
         demo_password: env_value("APP_REVIEW_DEMO_PASSWORD"),

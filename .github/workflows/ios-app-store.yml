@@ -96,6 +96,10 @@ jobs:
             missing+=("APP_REVIEW_EMAIL secret")
           fi
 
+          if [ -z "$APP_REVIEW_PHONE_NUMBER" ]; then
+            missing+=("APP_REVIEW_PHONE_NUMBER repository variable (include country code, for example +1 555 555 5555)")
+          fi
+
           if [ -z "$MATCH_GIT_URL" ] && [ -z "$IOS_PROVISIONING_PROFILE_SPECIFIER" ]; then
             missing+=("IOS_PROVISIONING_PROFILE_SPECIFIER repository variable (profile name) or MATCH_GIT_URL for fastlane match")
           fi
