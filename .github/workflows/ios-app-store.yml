@@ -92,10 +92,6 @@ jobs:
             missing+=("APPLE_TEAM_ID repository variable")
           fi
 
-          if [ -z "$APP_STORE_APPLE_ID" ]; then
-            missing+=("APP_STORE_APPLE_ID repository variable (numeric App Store app ID)")
-          fi
-
           if [ -z "$APP_REVIEW_EMAIL" ]; then
             missing+=("APP_REVIEW_EMAIL secret")
           fi
