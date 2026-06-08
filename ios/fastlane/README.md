@@ -54,6 +54,8 @@ MATCH_PASSWORD=
 
 **GitHub Actions:** `.github/workflows/ios-app-store.yml` defaults `MATCH_GIT_URL` to the current repository and sets `MATCH_GIT_BASIC_AUTHORIZATION` from `GITHUB_TOKEN` (`contents: read`). You do **not** need a PAT for that layout.
 
+The first Match run must create and commit encrypted certificates/profiles. Trigger **iOS App Store Release** manually from GitHub Actions and enable `initialize_signing` once. That run sets `MATCH_READONLY=false`; normal push releases keep `MATCH_READONLY=true` and only read existing signing assets.
+
 If your signing git repo is **another** private GitHub repository, add a repository secret `MATCH_GIT_BASIC_AUTHORIZATION` whose value is the Base64 encoding of `x-access-token:` plus a PAT that can read that repo:
 
 ```bash

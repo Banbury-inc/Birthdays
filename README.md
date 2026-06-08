@@ -98,7 +98,7 @@ For signing, use Fastlane match:
 MATCH_PASSWORD=
 ```
 
-GitHub Actions defaults `MATCH_GIT_URL` to this repository and sets Match HTTPS auth from `GITHUB_TOKEN`; use optional secret `MATCH_GIT_BASIC_AUTHORIZATION` (Base64 `x-access-token:PAT`) only if certs live in another private repo. See `ios/fastlane/README.md`.
+GitHub Actions defaults `MATCH_GIT_URL` to this repository and sets Match HTTPS auth from `GITHUB_TOKEN`; use optional secret `MATCH_GIT_BASIC_AUTHORIZATION` (Base64 `x-access-token:PAT`) only if certs live in another private repo. The first Match setup run must be started manually with the `initialize_signing` workflow input enabled so Fastlane can create and commit encrypted signing assets. See `ios/fastlane/README.md`.
 
 Or provide manual signing assets (no match repo):
 

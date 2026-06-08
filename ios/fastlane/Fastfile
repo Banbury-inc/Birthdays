@@ -41,6 +41,13 @@ def first_env(names)
   nil
 end
 
+def env_flag(name, fallback)
+  value = env_value(name)
+  return fallback if value.nil?
+
+  ["1", "true", "yes"].include?(value.downcase)
+end
+
 def require_env_any(names)
   value = first_env(names)
   UI.user_error!("Missing required environment variable: #{names.join(" or ")}") if value.nil?
@@ -128,7 +135,7 @@ def sync_signing(api_key)
       app_identifier: APP_IDENTIFIER,
       git_url: require_env("MATCH_GIT_URL"),
       git_branch: env_value("MATCH_GIT_BRANCH", "main"),
-      readonly: is_ci,
+      readonly: env_flag("MATCH_READONLY", is_ci),
       type: "appstore"
     }
 

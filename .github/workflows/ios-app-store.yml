@@ -5,13 +5,19 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      initialize_signing:
+        description: Allow fastlane match to create and commit initial signing assets
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ios-app-store-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   release:
@@ -45,6 +51,7 @@ jobs:
       MATCH_GIT_BRANCH: ${{ vars.MATCH_GIT_BRANCH || 'main' }}
       MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL || format('https://github.com/{0}', github.repository) }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_READONLY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.initialize_signing == 'true' && 'false' || 'true' }}
       IOS_PROVISIONING_PROFILE_SPECIFIER: ${{ vars.IOS_PROVISIONING_PROFILE_SPECIFIER }}
       VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
       VITE_DEFAULT_COUNTRY: ${{ vars.VITE_DEFAULT_COUNTRY || 'US' }}
