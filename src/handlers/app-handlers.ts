@@ -17,6 +17,12 @@ import {
   startPhoneSignIn,
 } from "@/services/auth-service"
 import { importDeviceContacts } from "@/services/contact-service"
+import {
+  getMockContactMatches,
+  getMockContactsSyncedCount,
+  getMockProfile,
+  shouldUseMockBirthdays,
+} from "@/services/mock-birthday-service"
 
 export type AppStep =
   | "phone"
@@ -26,16 +32,10 @@ export type AppStep =
   | "terms"
   | "home"
 
-export const appStepOptions: { label: string; step: AppStep }[] = [
-  { label: "Phone login", step: "phone" },
-  { label: "Confirm code", step: "otp" },
-  { label: "Confirm birthday", step: "profile" },
-  { label: "Terms", step: "terms" },
-  { label: "Sync contacts", step: "contacts" },
-  { label: "Home", step: "home" },
-]
+export type MainTab = "home" | "all" | "calendar" | "settings"
 
 export interface AppState {
+  activeTab: MainTab
   code: string
   contactsSyncedCount: number
   errorMessage: string
@@ -50,13 +50,14 @@ export interface AppState {
   termsAccepted: boolean
 }
 
-interface AppActions {
+export interface AppActions {
   setState: Dispatch<SetStateAction<AppState>>
 }
 
 export const MATCHES_POLL_INTERVAL_MS = 30_000
 
 export const initialAppState: AppState = {
+  activeTab: "home",
   code: "",
   contactsSyncedCount: 0,
   errorMessage: "",
@@ -69,6 +70,23 @@ export const initialAppState: AppState = {
   step: "phone",
   successMessage: "",
   termsAccepted: false,
+}
+
+function loadMockBirthdays(actions: AppActions) {
+  const profile = getMockProfile()
+
+  actions.setState((state) => ({
+    ...state,
+    contactsSyncedCount: getMockContactsSyncedCount(),
+    isLoading: false,
+    matches: getMockContactMatches(),
+    phoneNumber: profile.phoneNumber,
+    profile,
+    profileBirthday: profile.birthday,
+    profileName: profile.displayName,
+    step: "home",
+    successMessage: "Mock birthdays loaded for local development.",
+  }))
 }
 
 function setLoading(actions: AppActions, isLoading: boolean) {
@@ -101,6 +119,11 @@ function readAppState(actions: AppActions) {
 }
 
 async function loadProfileAndMatches(actions: AppActions) {
+  if (shouldUseMockBirthdays()) {
+    loadMockBirthdays(actions)
+    return
+  }
+
   if (!isApiConfigured()) {
     actions.setState((state) => ({
       ...state,
@@ -147,6 +170,11 @@ export function updateField<K extends keyof AppState>(
 }
 
 export async function bootstrapSession(actions: AppActions) {
+  if (shouldUseMockBirthdays()) {
+    loadMockBirthdays(actions)
+    return
+  }
+
   if (!isAuthConfigured()) return
 
   setLoading(actions, true)
@@ -263,17 +291,25 @@ export async function syncDeviceContacts(actions: AppActions) {
 
     if (isApiConfigured() && contacts.length) await syncContacts(contacts)
 
-    const matches = isApiConfigured() ? await fetchContactMatches() : []
+    const matches = shouldUseMockBirthdays()
+      ? getMockContactMatches()
+      : isApiConfigured()
+        ? await fetchContactMatches()
+        : []
 
     actions.setState((state) => ({
       ...state,
-      contactsSyncedCount: contacts.length,
+      contactsSyncedCount: shouldUseMockBirthdays()
+        ? getMockContactsSyncedCount()
+        : contacts.length,
       isLoading: false,
       matches,
       step: "home",
-      successMessage: contacts.length
-        ? "Contacts synced."
-        : "Open the iPhone app to grant Contacts permission and sync your address book.",
+      successMessage: shouldUseMockBirthdays()
+        ? "Mock birthdays loaded for local development."
+        : contacts.length
+          ? "Contacts synced."
+          : "Open the iPhone app to grant Contacts permission and sync your address book.",
     }))
   } catch (error) {
     setError(actions, error)
@@ -341,16 +377,28 @@ export function handleSignOut(actions: AppActions) {
   void signOut(actions)
 }
 
-export function handleNavigateToStep(actions: AppActions, step: AppStep) {
+export function handleTabChange(actions: AppActions, tab: MainTab) {
   actions.setState((state) => ({
     ...state,
+    activeTab: tab,
     errorMessage: "",
-    step,
     successMessage: "",
   }))
 }
 
 export async function refreshContactMatches(actions: AppActions) {
+  if (shouldUseMockBirthdays()) {
+    actions.setState((state) => {
+      if (state.step !== "home") return state
+
+      return {
+        ...state,
+        matches: getMockContactMatches(),
+      }
+    })
+    return
+  }
+
   if (!isApiConfigured()) return
 
   try {

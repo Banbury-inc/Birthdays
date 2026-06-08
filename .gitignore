@@ -39,3 +39,6 @@ backend.hcl
 *.njsproj
 *.sln
 *.sw?
+
+# Apple Auth Keys
+AuthKey_*.p8

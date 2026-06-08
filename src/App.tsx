@@ -4,30 +4,12 @@ import {
   CheckCircle2Icon,
   ContactRoundIcon,
   FileTextIcon,
-  LogOutIcon,
-  MenuIcon,
   PhoneIcon,
   ShieldCheckIcon,
 } from "lucide-react"
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarGroup,
-  AvatarGroupCount,
-} from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { MainAppShell } from "@/components/main-app-shell"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Card,
   CardAction,
@@ -38,64 +20,17 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  appStepOptions,
   bootstrapSession,
   handleContactsSync,
-  handleNavigateToStep,
   handleOtpSubmit,
   handlePhoneSubmit,
   handleProfileSubmit,
-  handleSignOut,
   handleTermsContinue,
   initialAppState,
   startHomeMatchesPolling,
   updateField,
   type AppState,
-  type AppStep,
 } from "@/handlers/app-handlers"
-
-interface BirthdayListItem {
-  birthday: string
-  displayName: string
-  id: string
-  label: "Contact" | "You"
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("")
-}
-
-function formatBirthday(birthday: string) {
-  const birthdayDate = new Date(`${birthday}T00:00:00`)
-
-  if (Number.isNaN(birthdayDate.getTime())) return birthday
-
-  return new Intl.DateTimeFormat(undefined, {
-    day: "numeric",
-    month: "long",
-  }).format(birthdayDate)
-}
-
-function BirthdayAvatar({
-  name,
-  size = "default",
-}: {
-  name: string
-  size?: "default" | "sm" | "lg"
-}) {
-  return (
-    <Avatar aria-label={`${name} avatar`} size={size}>
-      <AvatarFallback className="bg-primary/10 font-medium text-primary">
-        {getInitials(name) || "?"}
-      </AvatarFallback>
-    </Avatar>
-  )
-}
 
 function StatusMessage({ state }: { state: AppState }) {
   if (state.errorMessage) {
@@ -118,28 +53,6 @@ function StatusMessage({ state }: { state: AppState }) {
 export function App() {
   const [state, setState] = useState(initialAppState)
   const actions = useMemo(() => ({ setState }), [])
-  const birthdayList = useMemo<BirthdayListItem[]>(() => {
-    const profileBirthday: BirthdayListItem[] = state.profile
-      ? [
-          {
-            birthday: state.profile.birthday,
-            displayName: state.profile.displayName,
-            id: state.profile.id,
-            label: "You",
-          },
-        ]
-      : []
-
-    return [
-      ...profileBirthday,
-      ...state.matches.map((match): BirthdayListItem => ({
-        birthday: match.birthday,
-        displayName: match.displayName,
-        id: match.id,
-        label: "Contact",
-      })),
-    ]
-  }, [state.matches, state.profile])
 
   useEffect(() => {
     void bootstrapSession(actions)
@@ -151,62 +64,22 @@ export function App() {
     return startHomeMatchesPolling(actions)
   }, [actions, state.step])
 
+  const isOnboarding = state.step !== "home"
+
   return (
     <main className="min-h-dvh bg-background text-foreground">
       <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-5 px-5 py-6">
-        <header className="flex items-center justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-heading text-3xl font-semibold tracking-tight">
-              Birthdays
-            </h1>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                aria-label="Navigate pages"
-                className="shrink-0"
-                size="icon"
-                variant="outline"
-              >
-                <MenuIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Pages</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuRadioGroup
-                onValueChange={(value) =>
-                  handleNavigateToStep(actions, value as AppStep)
-                }
-                value={state.step}
-              >
-                {appStepOptions.map((option) => (
-                  <DropdownMenuRadioItem
-                    key={option.step}
-                    value={option.step}
-                  >
-                    {option.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-              {state.profile ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled={state.isLoading}
-                    onClick={() => handleSignOut(actions)}
-                    variant="destructive"
-                  >
-                    <LogOutIcon />
-                    Sign out
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
+        {isOnboarding ? (
+          <header className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="font-heading text-3xl font-semibold tracking-tight">
+                Birthdays
+              </h1>
+            </div>
+          </header>
+        ) : null}
 
-        <StatusMessage state={state} />
+        {isOnboarding ? <StatusMessage state={state} /> : null}
 
         {state.step === "phone" ? (
           <Card>
@@ -413,81 +286,9 @@ export function App() {
         ) : null}
 
         {state.step === "home" ? (
-          <>
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {state.profile?.displayName
-                    ? `Hi, ${state.profile.displayName}`
-                    : "Birthday contacts"}
-                </CardTitle>
-                <CardDescription>
-                  {birthdayList.length === 1
-                    ? "1 birthday saved"
-                    : `${birthdayList.length} birthdays saved`}
-                </CardDescription>
-                <CardAction>
-                  <Badge variant="outline">
-                    {state.contactsSyncedCount} synced
-                  </Badge>
-                </CardAction>
-              </CardHeader>
-              {state.matches.length ? (
-                <CardFooter>
-                  <AvatarGroup>
-                    {state.matches.slice(0, 3).map((match) => (
-                      <BirthdayAvatar key={match.id} name={match.displayName} />
-                    ))}
-                    {state.matches.length > 3 ? (
-                      <AvatarGroupCount>
-                        +{state.matches.length - 3}
-                      </AvatarGroupCount>
-                    ) : null}
-                  </AvatarGroup>
-                </CardFooter>
-              ) : null}
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Birthdays</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul aria-label="Birthday list" className="flex flex-col gap-3">
-                  {birthdayList.length ? (
-                    birthdayList.map((birthday) => (
-                      <li
-                        className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3"
-                        key={`${birthday.label}-${birthday.id}`}
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <BirthdayAvatar
-                            name={birthday.displayName}
-                            size="lg"
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">
-                              {birthday.displayName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {birthday.label}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge className="shrink-0" variant="secondary">
-                          {formatBirthday(birthday.birthday)}
-                        </Badge>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="rounded-lg border bg-muted p-3 text-sm text-muted-foreground">
-                      No birthdays yet.
-                    </li>
-                  )}
-                </ul>
-              </CardContent>
-            </Card>
-          </>
+          <div className="-mb-6 flex min-h-0 flex-1 flex-col">
+            <MainAppShell actions={actions} state={state} />
+          </div>
         ) : null}
       </div>
     </main>
