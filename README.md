@@ -110,12 +110,14 @@ Set these repository variables:
 ```bash
 APPLE_TEAM_ID=
 APP_STORE_CONNECT_TEAM_ID=
-APP_STORE_APPLE_ID=
+APP_STORE_APPLE_ID=1234567890
 APP_REVIEW_PHONE_NUMBER=+1 555 555 5555
 VITE_API_BASE_URL=
 VITE_DEFAULT_COUNTRY=US
 IOS_PROVISIONING_PROFILE_SPECIFIER=
 ```
+
+`APP_STORE_APPLE_ID` is the numeric app ID from App Store Connect, not your Apple login email.
 
 Optional variables include `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, `MATCH_GIT_URL` (only when using Fastlane match), and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
 

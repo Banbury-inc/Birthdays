@@ -240,6 +240,7 @@ platform :ios do
       api_key: api_key,
       app_identifier: APP_IDENTIFIER,
       app_version: version,
+      apple_id: require_env("APP_STORE_APPLE_ID"),
       ipa: IPA_PATH,
       metadata_path: METADATA_PATH,
       screenshots_path: SCREENSHOTS_PATH,
