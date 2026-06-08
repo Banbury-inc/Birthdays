@@ -5,10 +5,18 @@ BirthdaysSpaceshipPostAppPlatformFix.apply!
 
 default_platform(:ios)
 
+FASTLANE_ROOT = __dir__
+IOS_ROOT = File.expand_path("..", FASTLANE_ROOT)
+
 APP_IDENTIFIER = "com.banbury.birthdays"
 APP_NAME = "Birthdays"
-XCODEPROJ = "App.xcodeproj"
+XCODEPROJ = File.expand_path("App/App.xcodeproj", IOS_ROOT)
 SCHEME = "App"
+OUTPUT_DIR = File.join(IOS_ROOT, "output")
+IPA_PATH = File.join(OUTPUT_DIR, "#{APP_NAME}.ipa")
+METADATA_PATH = File.join(FASTLANE_ROOT, "metadata")
+SCREENSHOTS_PATH = File.join(FASTLANE_ROOT, "screenshots")
+APP_RATING_CONFIG_PATH = File.join(FASTLANE_ROOT, "metadata", "app_store_rating_config.json")
 
 def env_value(name, fallback = nil)
   value = ENV[name]
@@ -170,7 +178,7 @@ platform :ios do
       scheme: SCHEME,
       clean: true,
       export_method: "app-store",
-      output_directory: "output",
+      output_directory: OUTPUT_DIR,
       output_name: "#{APP_NAME}.ipa",
       xcargs: "DEVELOPMENT_TEAM=#{require_env("APPLE_TEAM_ID")}",
       export_options: {
@@ -184,10 +192,10 @@ platform :ios do
       api_key: api_key,
       app_identifier: APP_IDENTIFIER,
       app_version: version,
-      ipa: "output/#{APP_NAME}.ipa",
-      metadata_path: "./fastlane/metadata",
-      screenshots_path: "./fastlane/screenshots",
-      app_rating_config_path: "./fastlane/metadata/app_store_rating_config.json",
+      ipa: IPA_PATH,
+      metadata_path: METADATA_PATH,
+      screenshots_path: SCREENSHOTS_PATH,
+      app_rating_config_path: APP_RATING_CONFIG_PATH,
       submit_for_review: true,
       automatic_release: false,
       force: true,
