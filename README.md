@@ -98,7 +98,7 @@ For signing, use Fastlane match:
 MATCH_PASSWORD=
 ```
 
-GitHub Actions sets Match HTTPS auth from `GITHUB_TOKEN` when `MATCH_GIT_URL` points at this repo; use optional secret `MATCH_GIT_BASIC_AUTHORIZATION` (Base64 `x-access-token:PAT`) only if certs live in another private repo. See `ios/fastlane/README.md`.
+GitHub Actions defaults `MATCH_GIT_URL` to this repository and sets Match HTTPS auth from `GITHUB_TOKEN`; use optional secret `MATCH_GIT_BASIC_AUTHORIZATION` (Base64 `x-access-token:PAT`) only if certs live in another private repo. See `ios/fastlane/README.md`.
 
 Or provide manual signing assets (no match repo):
 
@@ -119,11 +119,10 @@ APP_STORE_CONNECT_TEAM_ID=
 APP_STORE_APPLE_ID=
 VITE_API_BASE_URL=
 VITE_DEFAULT_COUNTRY=US
-MATCH_GIT_URL=
 IOS_PROVISIONING_PROFILE_SPECIFIER=
 ```
 
-Optional variables include `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, `IOS_PROVISIONING_PROFILE_SPECIFIER` (required when `MATCH_GIT_URL` is unset), and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
+Optional variables include `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, `MATCH_GIT_URL` (only when using a different signing repo), `IOS_PROVISIONING_PROFILE_SPECIFIER` (required for manual signing), and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
 
 First-time App Store submissions still require complete App Store Connect setup, including app privacy answers, age rating verification, pricing/availability, screenshots, support URL, and privacy policy URL. See `ios/fastlane/README.md` for the release lane details.
 

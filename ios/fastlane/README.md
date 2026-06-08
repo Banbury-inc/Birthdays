@@ -47,12 +47,12 @@ Fastlane can find existing apps with App Store Connect API-key auth. First-time 
 Preferred signing uses Fastlane match:
 
 ```bash
-MATCH_GIT_URL=
+MATCH_GIT_URL= # optional in GitHub Actions; defaults to this repository
 MATCH_GIT_BRANCH=main
 MATCH_PASSWORD=
 ```
 
-**GitHub Actions:** When `MATCH_GIT_URL` is set, `.github/workflows/ios-app-store.yml` sets `MATCH_GIT_BASIC_AUTHORIZATION` from `GITHUB_TOKEN` (same repository as the workflow, `contents: read`). You do **not** need a PAT for that layout.
+**GitHub Actions:** `.github/workflows/ios-app-store.yml` defaults `MATCH_GIT_URL` to the current repository and sets `MATCH_GIT_BASIC_AUTHORIZATION` from `GITHUB_TOKEN` (`contents: read`). You do **not** need a PAT for that layout.
 
 If your signing git repo is **another** private GitHub repository, add a repository secret `MATCH_GIT_BASIC_AUTHORIZATION` whose value is the Base64 encoding of `x-access-token:` plus a PAT that can read that repo:
 

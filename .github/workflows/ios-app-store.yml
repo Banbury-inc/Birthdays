@@ -43,7 +43,7 @@ jobs:
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       FASTLANE_SKIP_SCREENSHOTS: ${{ vars.FASTLANE_SKIP_SCREENSHOTS || 'true' }}
       MATCH_GIT_BRANCH: ${{ vars.MATCH_GIT_BRANCH || 'main' }}
-      MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
+      MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL || format('https://github.com/{0}', github.repository) }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
       IOS_PROVISIONING_PROFILE_SPECIFIER: ${{ vars.IOS_PROVISIONING_PROFILE_SPECIFIER }}
       VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
@@ -157,7 +157,7 @@ jobs:
       # Match clones MATCH_GIT_URL over HTTPS. Same-repo workflows can use GITHUB_TOKEN (no PAT).
       # Set secret MATCH_GIT_BASIC_AUTHORIZATION only when the certs repo is another private repo.
       - name: Configure Match git HTTPS auth
-        if: ${{ vars.MATCH_GIT_URL != '' }}
+        if: ${{ env.MATCH_GIT_URL != '' }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
           MATCH_AUTH_OVERRIDE: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
