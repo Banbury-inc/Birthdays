@@ -110,6 +110,26 @@ jobs:
             exit 1
           fi
 
+          KEY_FILE=$(mktemp)
+          if [ -n "$APP_STORE_CONNECT_API_KEY_BASE64" ]; then
+            if ! printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$KEY_FILE"; then
+              echo "APP_STORE_CONNECT_API_KEY_BASE64 is not valid base64."
+              rm -f "$KEY_FILE"
+              exit 1
+            fi
+          else
+            printf '%s' "$APP_STORE_CONNECT_API_KEY_KEY" > "$KEY_FILE"
+          fi
+
+          if ! openssl pkey -in "$KEY_FILE" -noout >/dev/null 2>&1; then
+            echo "App Store Connect API key is not a valid .p8 private key."
+            echo "Update APP_STORE_CONNECT_API_KEY_BASE64 with base64 of AuthKey_${APP_STORE_CONNECT_KEY_ID:-$APP_STORE_CONNECT_API_KEY_KEY_ID}.p8."
+            rm -f "$KEY_FILE"
+            exit 1
+          fi
+
+          rm -f "$KEY_FILE"
+
       - name: Install dependencies
         run: npm ci
 
