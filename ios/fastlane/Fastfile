@@ -248,6 +248,8 @@ platform :ios do
       automatic_release: false,
       force: true,
       run_precheck_before_submit: true,
+      # Precheck cannot inspect in-app purchases when authenticating with an API key.
+      precheck_include_in_app_purchases: false,
       skip_screenshots: env_value("FASTLANE_SKIP_SCREENSHOTS", "true") == "true",
       submission_information: {
         add_id_info_uses_idfa: false,
