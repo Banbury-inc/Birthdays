@@ -1,1 +1,1 @@
-birthday,reminders,contacts,friends,calendar
+birthday,reminder,birthdays,contacts,friends,calendar,celebrate,party,gift,notifications

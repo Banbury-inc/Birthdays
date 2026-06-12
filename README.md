@@ -105,6 +105,8 @@ Set these repository variables:
 APPLE_TEAM_ID=
 APP_STORE_CONNECT_TEAM_ID=
 APP_REVIEW_PHONE_NUMBER=+1 555 555 5555
+APP_STORE_SUPPORT_URL=
+APP_STORE_PRIVACY_POLICY_URL=
 VITE_API_BASE_URL=
 VITE_DEFAULT_COUNTRY=US
 IOS_PROVISIONING_PROFILE_SPECIFIER=
@@ -112,7 +114,15 @@ IOS_PROVISIONING_PROFILE_SPECIFIER=
 
 Optional variables include `APP_STORE_APPLE_ID` (numeric App Store app ID), `APP_STORE_SKU`, `APP_STORE_COMPANY_NAME`, `APP_STORE_CONNECT_CREATE_APP`, `FASTLANE_SKIP_SCREENSHOTS`, `MATCH_GIT_URL` (only when using Fastlane match), and the `APP_REVIEW_*` contact fields. If `com.banbury.birthdays` already exists in App Store Connect, each `main` merge submits a new version using the version from `package.json` and the next TestFlight build number.
 
-First-time App Store submissions still require complete App Store Connect setup, including app privacy answers, age rating verification, pricing/availability, screenshots, support URL, and privacy policy URL. See `ios/fastlane/README.md` for the release lane details.
+App Store listing metadata (description, keywords, copyright, category) lives in `ios/fastlane/metadata/` and is uploaded by deliver on every release. The support and privacy policy URLs come from the `APP_STORE_SUPPORT_URL` and `APP_STORE_PRIVACY_POLICY_URL` repository variables.
+
+First-time submissions also require these one-time manual steps in App Store Connect, because the App Store Connect API key cannot set them:
+
+- **Pricing**: App Information → Pricing and Availability → set a price (for example Free).
+- **App privacy answers**: App Privacy → declare collected data (phone number and contacts for app functionality) and publish.
+- **Screenshots**: upload at least one 6.5" iPhone screenshot set, or commit PNGs to `ios/fastlane/screenshots/en-US/` (deliver uploads them automatically when present unless `FASTLANE_SKIP_SCREENSHOTS=true`).
+
+See `ios/fastlane/README.md` for the release lane details.
 
 ## Adding shadcn components
 

@@ -45,7 +45,9 @@ jobs:
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_TEAM_ID: ${{ vars.APP_STORE_CONNECT_TEAM_ID }}
       APP_STORE_PRIMARY_LOCALE: ${{ vars.APP_STORE_PRIMARY_LOCALE || 'en-US' }}
+      APP_STORE_PRIVACY_POLICY_URL: ${{ vars.APP_STORE_PRIVACY_POLICY_URL }}
       APP_STORE_SKU: ${{ vars.APP_STORE_SKU || 'birthdays-ios' }}
+      APP_STORE_SUPPORT_URL: ${{ vars.APP_STORE_SUPPORT_URL }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       FASTLANE_SKIP_SCREENSHOTS: ${{ vars.FASTLANE_SKIP_SCREENSHOTS || 'true' }}
       MATCH_GIT_BRANCH: ${{ vars.MATCH_GIT_BRANCH || 'main' }}
@@ -108,6 +110,14 @@ jobs:
 
           if [ -z "$MATCH_GIT_URL" ] && [ -z "$IOS_PROVISIONING_PROFILE_SPECIFIER" ]; then
             missing+=("IOS_PROVISIONING_PROFILE_SPECIFIER repository variable (profile name) or MATCH_GIT_URL for fastlane match")
+          fi
+
+          if [ -z "$APP_STORE_SUPPORT_URL" ]; then
+            missing+=("APP_STORE_SUPPORT_URL repository variable (App Store support URL)")
+          fi
+
+          if [ -z "$APP_STORE_PRIVACY_POLICY_URL" ]; then
+            missing+=("APP_STORE_PRIVACY_POLICY_URL repository variable (public privacy policy URL)")
           fi
 
           if [ "${#missing[@]}" -gt 0 ]; then
