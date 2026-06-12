@@ -78,19 +78,13 @@ The workflow builds the Vite app, syncs Capacitor into `ios/`, archives the Xcod
 Set these GitHub Actions secrets before enabling the workflow:
 
 ```bash
-APP_STORE_CONNECT_API_KEY_BASE64=
+APP_STORE_CONNECT_API_KEY_KEY=   # raw contents of AuthKey_<KEY_ID>.p8 (preferred)
 APP_STORE_CONNECT_ISSUER_ID=
 APP_STORE_CONNECT_KEY_ID=
 APP_REVIEW_EMAIL=
 ```
 
-The workflow also accepts Fastlane-style App Store Connect API key secrets:
-
-```bash
-APP_STORE_CONNECT_API_KEY_KEY=
-APP_STORE_CONNECT_API_KEY_ISSUER_ID=
-APP_STORE_CONNECT_API_KEY_KEY_ID=
-```
+Use the raw multi-line `.p8` contents for `APP_STORE_CONNECT_API_KEY_KEY` (`gh secret set APP_STORE_CONNECT_API_KEY_KEY < AuthKey_XXXX.p8`). A base64 variant (`APP_STORE_CONNECT_API_KEY_BASE64`) and Fastlane-style names (`APP_STORE_CONNECT_API_KEY_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_KEY_ID`) are also accepted, but the raw key avoids base64 handling issues in Apple's upload tools.
 
 For signing, provide manual signing assets (no match repo):
 

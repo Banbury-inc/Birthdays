@@ -121,12 +121,12 @@ jobs:
               exit 1
             fi
           else
-            printf '%s' "$APP_STORE_CONNECT_API_KEY_KEY" > "$KEY_FILE"
+            printf '%s\n' "$APP_STORE_CONNECT_API_KEY_KEY" > "$KEY_FILE"
           fi
 
           if ! openssl pkey -in "$KEY_FILE" -noout >/dev/null 2>&1; then
             echo "App Store Connect API key is not a valid .p8 private key."
-            echo "Update APP_STORE_CONNECT_API_KEY_BASE64 with base64 of AuthKey_${KEY_ID}.p8."
+            echo "Set APP_STORE_CONNECT_API_KEY_KEY to the raw contents of AuthKey_${KEY_ID}.p8 (preferred), or APP_STORE_CONNECT_API_KEY_BASE64 to its base64."
             rm -f "$KEY_FILE"
             exit 1
           fi
